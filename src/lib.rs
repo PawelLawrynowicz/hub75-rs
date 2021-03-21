@@ -409,6 +409,19 @@ impl<PINS: Outputs> DrawTarget<Rgb565> for Hub75<PINS> {
         Ok(())
     }
 
+    fn draw_iter<T>(&mut self, item: T) -> Result<(), Self::Error>
+    where
+        T: IntoIterator<Item = Pixel<Rgb565>>,
+    {
+        let pixels = item.into_iter();
+
+        for pixel in pixels {
+            self.draw_pixel(pixel).unwrap();
+        }
+
+        Ok(())
+    }
+
     fn size(&self) -> Size {
         DISPLAY_SIZE
     }
