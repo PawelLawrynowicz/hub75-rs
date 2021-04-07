@@ -401,9 +401,9 @@ impl<PINS: Outputs> DrawTarget<Rgb565> for Hub75<PINS> {
             pixel_tuple.4 = GAMMA8[color.g() as usize];
             pixel_tuple.5 = GAMMA8[color.b() as usize];
         } else {
-            pixel_tuple.1 = GAMMA8[color.r() as usize];
-            pixel_tuple.2 = GAMMA8[color.g() as usize];
-            pixel_tuple.3 = GAMMA8[color.b() as usize];
+            pixel_tuple.0 = GAMMA8[color.r() as usize];
+            pixel_tuple.1 = GAMMA8[color.g() as usize];
+            pixel_tuple.2 = GAMMA8[color.b() as usize];
         }
 
         Ok(())
