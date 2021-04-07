@@ -1,4 +1,6 @@
 #![no_std]
+use core::usize;
+
 use embedded_hal::blocking::delay::DelayUs;
 use embedded_hal::digital::v2::OutputPin;
 // Inspired by
@@ -24,18 +26,6 @@ const NUM_ROWS: usize = 32;
 #[cfg(not(feature = "size-64x64"))]
 const NUM_ROWS: usize = 16;
 
-#[cfg(feature = "size-64x64")]
-const DISPLAY_SIZE: Size = Size {
-    width: 64,
-    height: 64,
-};
-
-#[cfg(not(feature = "size-64x64"))]
-const DISPLAY_SIZE: Size = Size {
-    width: 32,
-    height: 32,
-};
-
 const GAMMA8: [u8; 256] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5,
@@ -50,9 +40,9 @@ const GAMMA8: [u8; 256] = [
     223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255,
 ];
 
-pub struct Hub75<PINS> {
-    //       r1, g1, b1, r2, g2, b2, column, row
-    data: [[(u8, u8, u8, u8, u8, u8); 64]; NUM_ROWS],
+pub struct Hub75<PINS, const ROW_LENGTH: usize> {
+    //r1, g1, b1, r2, g2, b2, column, row
+    data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS],
     brightness_step: u8,
     brightness_count: u8,
     pins: PINS,
@@ -247,7 +237,7 @@ impl<
     }
 }
 
-impl<PINS: Outputs> Hub75<PINS> {
+impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     /// Create a new hub instance
     ///
     /// Takes an implementation of the Outputs trait,
@@ -261,7 +251,7 @@ impl<PINS: Outputs> Hub75<PINS> {
     /// 3-4 bits are usually a good choice.
     pub fn new(pins: PINS, brightness_bits: u8) -> Self {
         assert!(brightness_bits < 9 && brightness_bits > 0);
-        let data = [[(0, 0, 0, 0, 0, 0); 64]; NUM_ROWS];
+        let data = [[(0, 0, 0, 0, 0, 0); ROW_LENGTH]; NUM_ROWS];
         let brightness_step = 1 << (8 - brightness_bits);
         let brightness_count = ((1 << brightness_bits as u16) - 1) as u8;
         Self {
@@ -385,7 +375,7 @@ use embedded_graphics::{
     DrawTarget,
 };
 
-impl<PINS: Outputs> DrawTarget<Rgb565> for Hub75<PINS> {
+impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb565> for Hub75<PINS, ROW_LENGTH> {
     type Error = core::convert::Infallible;
 
     fn draw_pixel(&mut self, item: Pixel<Rgb565>) -> Result<(), Self::Error> {
@@ -423,6 +413,9 @@ impl<PINS: Outputs> DrawTarget<Rgb565> for Hub75<PINS> {
     }
 
     fn size(&self) -> Size {
-        DISPLAY_SIZE
+        Size {
+            width: ROW_LENGTH as u32,
+            height: NUM_ROWS as u32,
+        }
     }
 }
