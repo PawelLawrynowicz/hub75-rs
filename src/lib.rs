@@ -354,7 +354,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     ///
     /// It's a bit faster than using the embedded_graphics interface
     /// to do the same
-    pub fn clear(&mut self) {
+    pub fn clear_display(&mut self) {
         for row in self.data.iter_mut() {
             for e in row.iter_mut() {
                 e.0 = 0;
@@ -368,12 +368,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     }
 }
 
-use embedded_graphics::{
-    drawable::Pixel,
-    pixelcolor::{Rgb565, RgbColor},
-    prelude::Size,
-    DrawTarget,
-};
+use embedded_graphics::{DrawTarget, drawable::Pixel, pixelcolor::{PixelColor, Rgb565, RgbColor}, prelude::Size};
 
 impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb565> for Hub75<PINS, ROW_LENGTH> {
     type Error = core::convert::Infallible;
@@ -407,6 +402,22 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb565> for Hub75<PINS, 
 
         for pixel in pixels {
             self.draw_pixel(pixel).unwrap();
+        }
+
+        Ok(())
+    }
+
+    fn clear(&mut self, color: Rgb565) -> Result<(), Self::Error> {
+        for row in 0..NUM_ROWS {
+            for column in 0..ROW_LENGTH {
+                let pixel_tuple = &mut self.data[row][column];
+                pixel_tuple.0 = GAMMA8[color.r() as usize];
+                pixel_tuple.1 = GAMMA8[color.g() as usize];
+                pixel_tuple.2 = GAMMA8[color.b() as usize];
+                pixel_tuple.3 = GAMMA8[color.r() as usize];
+                pixel_tuple.4 = GAMMA8[color.g() as usize];
+                pixel_tuple.5 = GAMMA8[color.b() as usize];
+            }
         }
 
         Ok(())
