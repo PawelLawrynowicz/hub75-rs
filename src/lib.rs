@@ -40,9 +40,13 @@ const GAMMA8: [u8; 256] = [
     223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255,
 ];
 
-pub struct Hub75<PINS, const ROW_LENGTH: usize> {
+pub struct Hub75<PINS> {
     //r1, g1, b1, r2, g2, b2, column, row
-    data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS],
+    #[cfg(not(feature = "stripe-multiplexing"))]
+    data: [[(u8, u8, u8, u8, u8, u8); 32]; NUM_ROWS],
+    #[cfg(feature = "stripe-multiplexing")]
+    data: [[(u8, u8, u8, u8, u8, u8); 64]; NUM_ROWS / 2],
+
     brightness_step: u8,
     brightness_count: u8,
     pins: PINS,
@@ -63,6 +67,7 @@ pub trait Outputs {
     type A: OutputPin<Error = Self::Error>;
     type B: OutputPin<Error = Self::Error>;
     type C: OutputPin<Error = Self::Error>;
+    #[cfg(not(feature = "stripe-multiplexing"))]
     type D: OutputPin<Error = Self::Error>;
     #[cfg(feature = "size-64x64")]
     type F: OutputPin<Error = Self::Error>;
@@ -78,6 +83,7 @@ pub trait Outputs {
     fn a(&mut self) -> &mut Self::A;
     fn b(&mut self) -> &mut Self::B;
     fn c(&mut self) -> &mut Self::C;
+    #[cfg(not(feature = "stripe-multiplexing"))]
     fn d(&mut self) -> &mut Self::D;
     #[cfg(feature = "size-64x64")]
     fn f(&mut self) -> &mut Self::F;
@@ -87,6 +93,7 @@ pub trait Outputs {
 }
 
 #[cfg(feature = "size-64x64")]
+#[cfg(not(feature = "stripe-multiplexing"))]
 impl<
         E,
         R1: OutputPin<Error = E>,
@@ -165,6 +172,7 @@ impl<
 }
 
 #[cfg(not(feature = "size-64x64"))]
+#[cfg(not(feature = "stripe-multiplexing"))]
 impl<
         E,
         R1: OutputPin<Error = E>,
@@ -237,7 +245,75 @@ impl<
     }
 }
 
-impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
+#[cfg(feature = "stripe-multiplexing")]
+impl<
+        E,
+        R1: OutputPin<Error = E>,
+        G1: OutputPin<Error = E>,
+        B1: OutputPin<Error = E>,
+        R2: OutputPin<Error = E>,
+        G2: OutputPin<Error = E>,
+        B2: OutputPin<Error = E>,
+        A: OutputPin<Error = E>,
+        B: OutputPin<Error = E>,
+        C: OutputPin<Error = E>,
+        CLK: OutputPin<Error = E>,
+        LAT: OutputPin<Error = E>,
+        OE: OutputPin<Error = E>,
+    > Outputs for (R1, G1, B1, R2, G2, B2, A, B, C, CLK, LAT, OE)
+{
+    type Error = E;
+    type R1 = R1;
+    type G1 = G1;
+    type B1 = B1;
+    type R2 = R2;
+    type G2 = G2;
+    type B2 = B2;
+    type A = A;
+    type B = B;
+    type C = C;
+    type CLK = CLK;
+    type LAT = LAT;
+    type OE = OE;
+    fn r1(&mut self) -> &mut R1 {
+        &mut self.0
+    }
+    fn g1(&mut self) -> &mut G1 {
+        &mut self.1
+    }
+    fn b1(&mut self) -> &mut B1 {
+        &mut self.2
+    }
+    fn r2(&mut self) -> &mut R2 {
+        &mut self.3
+    }
+    fn g2(&mut self) -> &mut G2 {
+        &mut self.4
+    }
+    fn b2(&mut self) -> &mut B2 {
+        &mut self.5
+    }
+    fn a(&mut self) -> &mut A {
+        &mut self.6
+    }
+    fn b(&mut self) -> &mut B {
+        &mut self.7
+    }
+    fn c(&mut self) -> &mut C {
+        &mut self.8
+    }
+    fn clk(&mut self) -> &mut CLK {
+        &mut self.9
+    }
+    fn lat(&mut self) -> &mut LAT {
+        &mut self.10
+    }
+    fn oe(&mut self) -> &mut OE {
+        &mut self.11
+    }
+}
+
+impl<PINS: Outputs> Hub75<PINS> {
     /// Create a new hub instance
     ///
     /// Takes an implementation of the Outputs trait,
@@ -251,7 +327,10 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     /// 3-4 bits are usually a good choice.
     pub fn new(pins: PINS, brightness_bits: u8) -> Self {
         assert!(brightness_bits < 9 && brightness_bits > 0);
-        let data = [[(0, 0, 0, 0, 0, 0); ROW_LENGTH]; NUM_ROWS];
+        #[cfg(not(feature = "stripe-multiplexing"))]
+        let data = [[(0, 0, 0, 0, 0, 0); 32]; NUM_ROWS];
+        #[cfg(feature = "stripe-multiplexing")]
+        let data = [[(0, 0, 0, 0, 0, 0); 64]; NUM_ROWS/2];
         let brightness_step = 1 << (8 - brightness_bits);
         let brightness_count = ((1 << brightness_bits as u16) - 1) as u8;
         Self {
@@ -330,6 +409,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
                 } else {
                     self.pins.c().set_low()?;
                 }
+                #[cfg(not(feature = "stripe-multiplexing"))]
                 if count & 8 != 0 {
                     self.pins.d().set_high()?;
                 } else {
@@ -370,18 +450,51 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
 
 use embedded_graphics::{DrawTarget, drawable::Pixel, pixelcolor::{PixelColor, Rgb565, RgbColor}, prelude::Size};
 
-impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb565> for Hub75<PINS, ROW_LENGTH> {
+
+impl<PINS: Outputs> DrawTarget<Rgb565> for Hub75<PINS> {
     type Error = core::convert::Infallible;
 
+    #[cfg(not(feature = "stripe-multiplexing"))]
     fn draw_pixel(&mut self, item: Pixel<Rgb565>) -> Result<(), Self::Error> {
         let Pixel(coord, color) = item;
 
-        let column = coord[0];
-        let row = coord[1];
+        let mut column = coord[0];
+        let mut row = coord[1];
 
         let mut pixel_tuple = &mut self.data[row as usize % NUM_ROWS][column as usize];
 
         if row > 15 {
+            pixel_tuple.3 = GAMMA8[color.r() as usize];
+            pixel_tuple.4 = GAMMA8[color.g() as usize];
+            pixel_tuple.5 = GAMMA8[color.b() as usize];
+        } else {
+            pixel_tuple.0 = GAMMA8[color.r() as usize];
+            pixel_tuple.1 = GAMMA8[color.g() as usize];
+            pixel_tuple.2 = GAMMA8[color.b() as usize];
+        }
+
+        Ok(())
+    }
+
+    #[cfg(feature = "stripe-multiplexing")]
+    fn draw_pixel(&mut self, item: Pixel<Rgb565>) -> Result<(), Self::Error> {
+        let Pixel(coord, color) = item;
+
+        let mut x = coord[0] as usize;
+        let mut y = coord[1] as usize;
+
+        let is_top_stripe= (y % NUM_ROWS ) < NUM_ROWS / 2;
+
+        if is_top_stripe {
+            x = x + 32;
+        }
+
+        let column = x;
+        let row = y % (NUM_ROWS / 2);
+
+        let mut pixel_tuple = &mut self.data[row as usize][column as usize];
+
+        if y > 15 {
             pixel_tuple.3 = GAMMA8[color.r() as usize];
             pixel_tuple.4 = GAMMA8[color.g() as usize];
             pixel_tuple.5 = GAMMA8[color.b() as usize];
@@ -409,7 +522,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb565> for Hub75<PINS, 
 
     fn clear(&mut self, color: Rgb565) -> Result<(), Self::Error> {
         for row in 0..NUM_ROWS {
-            for column in 0..ROW_LENGTH {
+            for column in 0..64{
                 let pixel_tuple = &mut self.data[row][column];
                 pixel_tuple.0 = GAMMA8[color.r() as usize];
                 pixel_tuple.1 = GAMMA8[color.g() as usize];
@@ -425,8 +538,8 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb565> for Hub75<PINS, 
 
     fn size(&self) -> Size {
         Size {
-            width: ROW_LENGTH as u32,
-            height: NUM_ROWS as u32,
+            width: 32,
+            height: (NUM_ROWS * 2) as u32,
         }
     }
 }

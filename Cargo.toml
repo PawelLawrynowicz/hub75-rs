@@ -19,3 +19,4 @@ embedded-graphics = "0.6.2"
 
 [features]
 size-64x64 = []
+stripe-multiplexing = []
