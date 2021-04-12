@@ -368,12 +368,12 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     }
 }
 
-use embedded_graphics::{DrawTarget, drawable::Pixel, pixelcolor::{PixelColor, Rgb565, RgbColor}, prelude::Size};
+use embedded_graphics::{DrawTarget, drawable::Pixel, pixelcolor::{PixelColor, Rgb888, RgbColor}, prelude::Size};
 
-impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb565> for Hub75<PINS, ROW_LENGTH> {
+impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<PINS, ROW_LENGTH> {
     type Error = core::convert::Infallible;
 
-    fn draw_pixel(&mut self, item: Pixel<Rgb565>) -> Result<(), Self::Error> {
+    fn draw_pixel(&mut self, item: Pixel<Rgb888>) -> Result<(), Self::Error> {
         let Pixel(coord, color) = item;
 
         let column = coord[0];
@@ -396,7 +396,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb565> for Hub75<PINS, 
 
     fn draw_iter<T>(&mut self, item: T) -> Result<(), Self::Error>
     where
-        T: IntoIterator<Item = Pixel<Rgb565>>,
+        T: IntoIterator<Item = Pixel<Rgb888>>,
     {
         let pixels = item.into_iter();
 
@@ -407,7 +407,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb565> for Hub75<PINS, 
         Ok(())
     }
 
-    fn clear(&mut self, color: Rgb565) -> Result<(), Self::Error> {
+    fn clear(&mut self, color: Rgb888) -> Result<(), Self::Error> {
         for row in 0..NUM_ROWS {
             for column in 0..ROW_LENGTH {
                 let pixel_tuple = &mut self.data[row][column];
