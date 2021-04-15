@@ -530,9 +530,16 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<PINS, 
         Ok(())
     }
 
+    
     fn clear(&mut self, color: Rgb888) -> Result<(), Self::Error> {
-        for row in 0..NUM_ROWS {
-            for column in 0..64{
+
+        #[cfg(not(feature = "stripe-multiplexing"))]
+        let rows = NUM_ROWS;
+        #[cfg(feature = "stripe-multiplexing")]
+        let rows = NUM_ROWS / 2;
+
+        for row in 0..rows {
+            for column in 0..ROW_LENGTH{
                 let pixel_tuple = &mut self.data[row][column];
                 pixel_tuple.0 = GAMMA8[color.r() as usize];
                 pixel_tuple.1 = GAMMA8[color.g() as usize];
