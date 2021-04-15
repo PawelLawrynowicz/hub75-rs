@@ -40,12 +40,12 @@ const GAMMA8: [u8; 256] = [
     223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255,
 ];
 
-pub struct Hub75<PINS> {
+pub struct Hub75<PINS, const ROW_LENGTH: usize> {
     //r1, g1, b1, r2, g2, b2, column, row
     #[cfg(not(feature = "stripe-multiplexing"))]
-    data: [[(u8, u8, u8, u8, u8, u8); 32]; NUM_ROWS],
+    data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS],
     #[cfg(feature = "stripe-multiplexing")]
-    data: [[(u8, u8, u8, u8, u8, u8); 64]; NUM_ROWS / 2],
+    data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS / 2],
 
     brightness_step: u8,
     brightness_count: u8,
@@ -313,7 +313,7 @@ impl<
     }
 }
 
-impl<PINS: Outputs> Hub75<PINS> {
+impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     /// Create a new hub instance
     ///
     /// Takes an implementation of the Outputs trait,
@@ -325,12 +325,13 @@ impl<PINS: Outputs> Hub75<PINS> {
     /// but each extra bit doubles the time `output` will take. This might lead to noticable flicker.
     ///
     /// 3-4 bits are usually a good choice.
+    /// IMPORTANT: When using stripe multiplexing set row width to double of the actual width.
     pub fn new(pins: PINS, brightness_bits: u8) -> Self {
         assert!(brightness_bits < 9 && brightness_bits > 0);
         #[cfg(not(feature = "stripe-multiplexing"))]
-        let data = [[(0, 0, 0, 0, 0, 0); 32]; NUM_ROWS];
+        let data = [[(0, 0, 0, 0, 0, 0); ROW_LENGTH]; NUM_ROWS];
         #[cfg(feature = "stripe-multiplexing")]
-        let data = [[(0, 0, 0, 0, 0, 0); 64]; NUM_ROWS/2];
+        let data = [[(0, 0, 0, 0, 0, 0); ROW_LENGTH]; NUM_ROWS/2];
         let brightness_step = 1 << (8 - brightness_bits);
         let brightness_count = ((1 << brightness_bits as u16) - 1) as u8;
         Self {
@@ -448,18 +449,18 @@ impl<PINS: Outputs> Hub75<PINS> {
     }
 }
 
-use embedded_graphics::{DrawTarget, drawable::Pixel, pixelcolor::{PixelColor, Rgb888, RgbColor}, prelude::Size};
+use embedded_graphics::{DrawTarget, drawable::Pixel, pixelcolor::{Rgb888, RgbColor}, prelude::Size};
 
 
-impl<PINS: Outputs> DrawTarget<Rgb888> for Hub75<PINS> {
+impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<PINS, ROW_LENGTH> {
     type Error = core::convert::Infallible;
 
     #[cfg(not(feature = "stripe-multiplexing"))]
     fn draw_pixel(&mut self, item: Pixel<Rgb888>) -> Result<(), Self::Error> {
         let Pixel(coord, color) = item;
 
-        let mut column = coord[0];
-        let mut row = coord[1];
+        let column = coord[0];
+        let row = coord[1];
 
         let mut pixel_tuple = &mut self.data[row as usize % NUM_ROWS][column as usize];
 
@@ -538,7 +539,10 @@ impl<PINS: Outputs> DrawTarget<Rgb888> for Hub75<PINS> {
 
     fn size(&self) -> Size {
         Size {
-            width: 32,
+            #[cfg(not(feature = "stripe-multiplexing"))]
+            width: ROW_LENGTH as u32,
+            #[cfg(feature = "stripe-multiplexing")]
+            width: (ROW_LENGTH as u32) / 2,
             height: (NUM_ROWS * 2) as u32,
         }
     }
