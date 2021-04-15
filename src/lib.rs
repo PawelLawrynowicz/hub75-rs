@@ -1,4 +1,5 @@
 #![no_std]
+
 use core::usize;
 
 use embedded_hal::blocking::delay::DelayUs;
@@ -42,8 +43,10 @@ const GAMMA8: [u8; 256] = [
 
 pub struct Hub75<PINS, const ROW_LENGTH: usize> {
     //r1, g1, b1, r2, g2, b2, column, row
+
     #[cfg(not(feature = "stripe-multiplexing"))]
     data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS],
+
     #[cfg(feature = "stripe-multiplexing")]
     data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS / 2],
 
@@ -51,6 +54,8 @@ pub struct Hub75<PINS, const ROW_LENGTH: usize> {
     brightness_count: u8,
     pins: PINS,
 }
+
+
 
 /// A trait, so that it's easier to reason about the pins
 /// Implemented for a tuple `(r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe)`
@@ -485,11 +490,15 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<PINS, 
         let mut y = coord[1] as usize;
 
         let is_top_stripe= (y % NUM_ROWS ) < NUM_ROWS / 2;
+        
+        let screen_offset = x / 32;
 
+        x = x + ( screen_offset * 32 );
+        
         if is_top_stripe {
             x = x + 32;
         }
-
+        
         let column = x;
         let row = y % (NUM_ROWS / 2);
 
