@@ -43,19 +43,18 @@ const GAMMA8: [u8; 256] = [
 
 pub struct Hub75<PINS, const ROW_LENGTH: usize> {
     //r1, g1, b1, r2, g2, b2, column, row
-
     #[cfg(not(feature = "stripe-multiplexing"))]
     data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS],
 
     #[cfg(feature = "stripe-multiplexing")]
     data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS / 2],
 
+    output_port: *mut u8,
+
     brightness_step: u8,
     brightness_count: u8,
     pins: PINS,
 }
-
-
 
 /// A trait, so that it's easier to reason about the pins
 /// Implemented for a tuple `(r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe)`
@@ -63,12 +62,6 @@ pub struct Hub75<PINS, const ROW_LENGTH: usize> {
 /// f pin is needed for 64x64 matrix support
 pub trait Outputs {
     type Error;
-    type R1: OutputPin<Error = Self::Error>;
-    type G1: OutputPin<Error = Self::Error>;
-    type B1: OutputPin<Error = Self::Error>;
-    type R2: OutputPin<Error = Self::Error>;
-    type G2: OutputPin<Error = Self::Error>;
-    type B2: OutputPin<Error = Self::Error>;
     type A: OutputPin<Error = Self::Error>;
     type B: OutputPin<Error = Self::Error>;
     type C: OutputPin<Error = Self::Error>;
@@ -79,12 +72,6 @@ pub trait Outputs {
     type CLK: OutputPin<Error = Self::Error>;
     type LAT: OutputPin<Error = Self::Error>;
     type OE: OutputPin<Error = Self::Error>;
-    fn r1(&mut self) -> &mut Self::R1;
-    fn g1(&mut self) -> &mut Self::G1;
-    fn b1(&mut self) -> &mut Self::B1;
-    fn r2(&mut self) -> &mut Self::R2;
-    fn g2(&mut self) -> &mut Self::G2;
-    fn b2(&mut self) -> &mut Self::B2;
     fn a(&mut self) -> &mut Self::A;
     fn b(&mut self) -> &mut Self::B;
     fn c(&mut self) -> &mut Self::C;
@@ -101,12 +88,6 @@ pub trait Outputs {
 #[cfg(not(feature = "stripe-multiplexing"))]
 impl<
         E,
-        R1: OutputPin<Error = E>,
-        G1: OutputPin<Error = E>,
-        B1: OutputPin<Error = E>,
-        R2: OutputPin<Error = E>,
-        G2: OutputPin<Error = E>,
-        B2: OutputPin<Error = E>,
         A: OutputPin<Error = E>,
         B: OutputPin<Error = E>,
         C: OutputPin<Error = E>,
@@ -115,15 +96,9 @@ impl<
         CLK: OutputPin<Error = E>,
         LAT: OutputPin<Error = E>,
         OE: OutputPin<Error = E>,
-    > Outputs for (R1, G1, B1, R2, G2, B2, A, B, C, D, F, CLK, LAT, OE)
+    > Outputs for (A, B, C, D, F, CLK, LAT, OE)
 {
     type Error = E;
-    type R1 = R1;
-    type G1 = G1;
-    type B1 = B1;
-    type R2 = R2;
-    type G2 = G2;
-    type B2 = B2;
     type A = A;
     type B = B;
     type C = C;
@@ -132,47 +107,29 @@ impl<
     type CLK = CLK;
     type LAT = LAT;
     type OE = OE;
-    fn r1(&mut self) -> &mut R1 {
+    fn a(&mut self) -> &mut A {
         &mut self.0
     }
-    fn g1(&mut self) -> &mut G1 {
+    fn b(&mut self) -> &mut B {
         &mut self.1
     }
-    fn b1(&mut self) -> &mut B1 {
+    fn c(&mut self) -> &mut C {
         &mut self.2
     }
-    fn r2(&mut self) -> &mut R2 {
+    fn d(&mut self) -> &mut D {
         &mut self.3
     }
-    fn g2(&mut self) -> &mut G2 {
+    fn f(&mut self) -> &mut F {
         &mut self.4
     }
-    fn b2(&mut self) -> &mut B2 {
+    fn clk(&mut self) -> &mut CLK {
         &mut self.5
     }
-    fn a(&mut self) -> &mut A {
+    fn lat(&mut self) -> &mut LAT {
         &mut self.6
     }
-    fn b(&mut self) -> &mut B {
-        &mut self.7
-    }
-    fn c(&mut self) -> &mut C {
-        &mut self.8
-    }
-    fn d(&mut self) -> &mut D {
-        &mut self.9
-    }
-    fn f(&mut self) -> &mut F {
-        &mut self.10
-    }
-    fn clk(&mut self) -> &mut CLK {
-        &mut self.11
-    }
-    fn lat(&mut self) -> &mut LAT {
-        &mut self.12
-    }
     fn oe(&mut self) -> &mut OE {
-        &mut self.13
+        &mut self.7
     }
 }
 
@@ -180,12 +137,6 @@ impl<
 #[cfg(not(feature = "stripe-multiplexing"))]
 impl<
         E,
-        R1: OutputPin<Error = E>,
-        G1: OutputPin<Error = E>,
-        B1: OutputPin<Error = E>,
-        R2: OutputPin<Error = E>,
-        G2: OutputPin<Error = E>,
-        B2: OutputPin<Error = E>,
         A: OutputPin<Error = E>,
         B: OutputPin<Error = E>,
         C: OutputPin<Error = E>,
@@ -193,15 +144,9 @@ impl<
         CLK: OutputPin<Error = E>,
         LAT: OutputPin<Error = E>,
         OE: OutputPin<Error = E>,
-    > Outputs for (R1, G1, B1, R2, G2, B2, A, B, C, D, CLK, LAT, OE)
+    > Outputs for (A, B, C, D, CLK, LAT, OE)
 {
     type Error = E;
-    type R1 = R1;
-    type G1 = G1;
-    type B1 = B1;
-    type R2 = R2;
-    type G2 = G2;
-    type B2 = B2;
     type A = A;
     type B = B;
     type C = C;
@@ -209,141 +154,91 @@ impl<
     type CLK = CLK;
     type LAT = LAT;
     type OE = OE;
-    fn r1(&mut self) -> &mut R1 {
+    fn a(&mut self) -> &mut A {
         &mut self.0
     }
-    fn g1(&mut self) -> &mut G1 {
+    fn b(&mut self) -> &mut B {
         &mut self.1
     }
-    fn b1(&mut self) -> &mut B1 {
+    fn c(&mut self) -> &mut C {
         &mut self.2
     }
-    fn r2(&mut self) -> &mut R2 {
+    fn d(&mut self) -> &mut D {
         &mut self.3
     }
-    fn g2(&mut self) -> &mut G2 {
+    fn clk(&mut self) -> &mut CLK {
         &mut self.4
     }
-    fn b2(&mut self) -> &mut B2 {
+    fn lat(&mut self) -> &mut LAT {
         &mut self.5
     }
-    fn a(&mut self) -> &mut A {
-        &mut self.6
-    }
-    fn b(&mut self) -> &mut B {
-        &mut self.7
-    }
-    fn c(&mut self) -> &mut C {
-        &mut self.8
-    }
-    fn d(&mut self) -> &mut D {
-        &mut self.9
-    }
-    fn clk(&mut self) -> &mut CLK {
-        &mut self.10
-    }
-    fn lat(&mut self) -> &mut LAT {
-        &mut self.11
-    }
     fn oe(&mut self) -> &mut OE {
-        &mut self.12
+        &mut self.6
     }
 }
 
 #[cfg(feature = "stripe-multiplexing")]
 impl<
         E,
-        R1: OutputPin<Error = E>,
-        G1: OutputPin<Error = E>,
-        B1: OutputPin<Error = E>,
-        R2: OutputPin<Error = E>,
-        G2: OutputPin<Error = E>,
-        B2: OutputPin<Error = E>,
         A: OutputPin<Error = E>,
         B: OutputPin<Error = E>,
         C: OutputPin<Error = E>,
         CLK: OutputPin<Error = E>,
         LAT: OutputPin<Error = E>,
         OE: OutputPin<Error = E>,
-    > Outputs for (R1, G1, B1, R2, G2, B2, A, B, C, CLK, LAT, OE)
+    > Outputs for (A, B, C, CLK, LAT, OE)
 {
     type Error = E;
-    type R1 = R1;
-    type G1 = G1;
-    type B1 = B1;
-    type R2 = R2;
-    type G2 = G2;
-    type B2 = B2;
     type A = A;
     type B = B;
     type C = C;
     type CLK = CLK;
     type LAT = LAT;
     type OE = OE;
-    fn r1(&mut self) -> &mut R1 {
+    fn a(&mut self) -> &mut A {
         &mut self.0
     }
-    fn g1(&mut self) -> &mut G1 {
+    fn b(&mut self) -> &mut B {
         &mut self.1
     }
-    fn b1(&mut self) -> &mut B1 {
+    fn c(&mut self) -> &mut C {
         &mut self.2
     }
-    fn r2(&mut self) -> &mut R2 {
+    fn clk(&mut self) -> &mut CLK {
         &mut self.3
     }
-    fn g2(&mut self) -> &mut G2 {
+    fn lat(&mut self) -> &mut LAT {
         &mut self.4
     }
-    fn b2(&mut self) -> &mut B2 {
-        &mut self.5
-    }
-    fn a(&mut self) -> &mut A {
-        &mut self.6
-    }
-    fn b(&mut self) -> &mut B {
-        &mut self.7
-    }
-    fn c(&mut self) -> &mut C {
-        &mut self.8
-    }
-    fn clk(&mut self) -> &mut CLK {
-        &mut self.9
-    }
-    fn lat(&mut self) -> &mut LAT {
-        &mut self.10
-    }
     fn oe(&mut self) -> &mut OE {
-        &mut self.11
+        &mut self.5
     }
 }
 
 impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     /// Create a new hub instance
-    ///
-    /// Takes an implementation of the Outputs trait,
-    /// using a tuple `(r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe)`,
-    /// with every member implementing `OutputPin` is usually the right choice.
-    ///
     /// `brightness_bits` provides the number of brightness_bits for each color (1-8).
     /// More bits allow for much more colors, especially in combination with the gamma correction,
     /// but each extra bit doubles the time `output` will take. This might lead to noticable flicker.
     ///
     /// 3-4 bits are usually a good choice.
-    /// IMPORTANT: When using stripe multiplexing set row width to double of the actual width.
-    pub fn new(pins: PINS, brightness_bits: u8) -> Self {
+    /// IMPORTANT: When using stripe multiplexing set row width to double of the actual width of the screen.
+    pub fn new(pins: PINS, brightness_bits: u8, output_port: &mut u8) -> Self {
         assert!(brightness_bits < 9 && brightness_bits > 0);
+        
         #[cfg(not(feature = "stripe-multiplexing"))]
         let data = [[(0, 0, 0, 0, 0, 0); ROW_LENGTH]; NUM_ROWS];
         #[cfg(feature = "stripe-multiplexing")]
-        let data = [[(0, 0, 0, 0, 0, 0); ROW_LENGTH]; NUM_ROWS/2];
+        let data = [[(0, 0, 0, 0, 0, 0); ROW_LENGTH]; NUM_ROWS / 2];
+
         let brightness_step = 1 << (8 - brightness_bits);
         let brightness_count = ((1 << brightness_bits as u16) - 1) as u8;
         Self {
             data,
             brightness_step,
             brightness_count,
-            pins,
+            output_port,
+            pins
         }
     }
 
@@ -358,84 +253,85 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
         // PWM cycle
         for mut brightness in 0..self.brightness_count {
             brightness = (brightness + 1).saturating_mul(self.brightness_step);
-            for (count, row) in self.data.iter().enumerate() {
-                for element in row.iter() {
-                    if element.0 >= brightness {
-                        self.pins.r1().set_high()?;
-                    } else {
-                        self.pins.r1().set_low()?;
-                    }
-                    if element.1 >= brightness {
-                        self.pins.g1().set_high()?;
-                    } else {
-                        self.pins.g1().set_low()?;
-                    }
-                    if element.2 >= brightness {
-                        self.pins.b1().set_high()?;
-                    } else {
-                        self.pins.b1().set_low()?;
-                    }
-                    if element.3 >= brightness {
-                        self.pins.r2().set_high()?;
-                    } else {
-                        self.pins.r2().set_low()?;
-                    }
-                    if element.4 >= brightness {
-                        self.pins.g2().set_high()?;
-                    } else {
-                        self.pins.g2().set_low()?;
-                    }
-                    if element.5 >= brightness {
-                        self.pins.b2().set_high()?;
-                    } else {
-                        self.pins.b2().set_low()?;
-                    }
-                    self.pins.clk().set_high()?;
-                    self.pins.clk().set_low()?;
-                }
-                self.pins.oe().set_high()?;
-                // Prevents ghosting, no idea why
-                delay.delay_us(2);
-                self.pins.lat().set_low()?;
-                delay.delay_us(2);
-                self.pins.lat().set_high()?;
-                // Select row
-                if count & 1 != 0 {
-                    self.pins.a().set_high()?;
-                } else {
-                    self.pins.a().set_low()?;
-                }
-                if count & 2 != 0 {
-                    self.pins.b().set_high()?;
-                } else {
-                    self.pins.b().set_low()?;
-                }
-                if count & 4 != 0 {
-                    self.pins.c().set_high()?;
-                } else {
-                    self.pins.c().set_low()?;
-                }
-                #[cfg(not(feature = "stripe-multiplexing"))]
-                if count & 8 != 0 {
-                    self.pins.d().set_high()?;
-                } else {
-                    self.pins.d().set_low()?;
-                }
-                #[cfg(feature = "size-64x64")]
-                if count & 16 != 0 {
-                    self.pins.f().set_high()?;
-                } else {
-                    self.pins.f().set_low()?;
-                }
-                delay.delay_us(2);
-                self.pins.oe().set_low()?;
-            }
+            self.output_single(delay, brightness)?;
         }
         // Disable the output
         // Prevents one row from being much brighter than the others
         self.pins.oe().set_high()?;
         Ok(())
     }
+
+    pub fn output_single<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, brightness: u8) -> Result<(), PINS::Error>{
+        for (count, row) in self.data.iter().enumerate() {
+            for element in row.iter() {
+                //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
+                //in this order: r1,g1,b1,r2,g2,b2
+                unsafe {
+                    *self.output_port = 0;
+
+                    if element.0 >= brightness {
+                        *self.output_port += 1;
+                    }
+                    if element.1 >= brightness {
+                        *self.output_port += 2;
+                    }
+                    if element.2 >= brightness {
+                        *self.output_port += 4;
+                    }
+                    if element.3 >= brightness {
+                        *self.output_port += 8;
+                    }
+                    if element.4 >= brightness {
+                        *self.output_port += 16;
+                    }
+                    if element.5 >= brightness {
+                        *self.output_port += 32;
+                    }
+                }
+                self.pins.clk().set_high()?;
+                self.pins.clk().set_low()?;
+            }
+            self.pins.oe().set_high()?;
+            // Prevents ghosting, no idea why
+            delay.delay_us(2);
+            self.pins.lat().set_low()?;
+            delay.delay_us(2);
+            self.pins.lat().set_high()?;
+            // Select row
+            if count & 1 != 0 {
+                self.pins.a().set_high()?;
+            } else {
+                self.pins.a().set_low()?;
+            }
+            if count & 2 != 0 {
+                self.pins.b().set_high()?;
+            } else {
+                self.pins.b().set_low()?;
+            }
+            if count & 4 != 0 {
+                self.pins.c().set_high()?;
+            } else {
+                self.pins.c().set_low()?;
+            }
+            #[cfg(not(feature = "stripe-multiplexing"))]
+            if count & 8 != 0 {
+                self.pins.d().set_high()?;
+            } else {
+                self.pins.d().set_low()?;
+            }
+            #[cfg(feature = "size-64x64")]
+            if count & 16 != 0 {
+                self.pins.f().set_high()?;
+            } else {
+                self.pins.f().set_low()?;
+            }
+            delay.delay_us(2);
+            self.pins.oe().set_low()?;
+        }
+
+        Ok(())
+    }
+
     /// Clear the output
     ///
     /// It's a bit faster than using the embedded_graphics interface
@@ -454,8 +350,12 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     }
 }
 
-use embedded_graphics::{DrawTarget, drawable::Pixel, pixelcolor::{Rgb888, RgbColor}, prelude::Size};
-
+use embedded_graphics::{
+    drawable::Pixel,
+    pixelcolor::{Rgb888, RgbColor},
+    prelude::Size,
+    DrawTarget,
+};
 
 impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<PINS, ROW_LENGTH> {
     type Error = core::convert::Infallible;
@@ -489,16 +389,16 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<PINS, 
         let mut x = coord[0] as usize;
         let mut y = coord[1] as usize;
 
-        let is_top_stripe= (y % NUM_ROWS ) < NUM_ROWS / 2;
-        
+        let is_top_stripe = (y % NUM_ROWS) < NUM_ROWS / 2;
+
         let screen_offset = x / 32;
 
-        x = x + ( screen_offset * 32 );
-        
+        x = x + (screen_offset * 32);
+
         if is_top_stripe {
             x = x + 32;
         }
-        
+
         let column = x;
         let row = y % (NUM_ROWS / 2);
 
@@ -530,16 +430,14 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<PINS, 
         Ok(())
     }
 
-    
     fn clear(&mut self, color: Rgb888) -> Result<(), Self::Error> {
-
         #[cfg(not(feature = "stripe-multiplexing"))]
         let rows = NUM_ROWS;
         #[cfg(feature = "stripe-multiplexing")]
         let rows = NUM_ROWS / 2;
 
         for row in 0..rows {
-            for column in 0..ROW_LENGTH{
+            for column in 0..ROW_LENGTH {
                 let pixel_tuple = &mut self.data[row][column];
                 pixel_tuple.0 = GAMMA8[color.r() as usize];
                 pixel_tuple.1 = GAMMA8[color.g() as usize];
