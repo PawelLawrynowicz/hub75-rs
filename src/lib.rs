@@ -297,9 +297,9 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
             }
             self.pins.oe().set_high()?;
             // Prevents ghosting, no idea why
-            delay.delay_us(2);
+            delay.delay_us(1);
             self.pins.lat().set_low()?;
-            delay.delay_us(2);
+            delay.delay_us(1);
             self.pins.lat().set_high()?;
             // Select row
             if count & 1 != 0 {
@@ -329,7 +329,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
             } else {
                 self.pins.f().set_low()?;
             }
-            delay.delay_us(2);
+            delay.delay_us(1);
             self.pins.oe().set_low()?;
         }
 
