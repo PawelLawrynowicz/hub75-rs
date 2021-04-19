@@ -266,28 +266,32 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
             for element in row.iter() {
                 //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
                 //in this order: r1,g1,b1,r2,g2,b2
-                unsafe {
-                    *self.output_port = 0;
+                let mut temp: u8 = 0;
 
-                    if element.0 >= brightness {
-                        *self.output_port += 1;
-                    }
-                    if element.1 >= brightness {
-                        *self.output_port += 2;
-                    }
-                    if element.2 >= brightness {
-                        *self.output_port += 4;
-                    }
-                    if element.3 >= brightness {
-                        *self.output_port += 8;
-                    }
-                    if element.4 >= brightness {
-                        *self.output_port += 16;
-                    }
-                    if element.5 >= brightness {
-                        *self.output_port += 32;
-                    }
+                if element.0 >= brightness {
+                    temp += 1;
                 }
+                if element.1 >= brightness {
+                    temp += 2;
+                }
+                if element.2 >= brightness {
+                    temp += 4;
+                }
+                if element.3 >= brightness {
+                    temp += 8;
+                }
+                if element.4 >= brightness {
+                    temp += 16;
+                }
+                if element.5 >= brightness {
+                    temp += 32;
+                }
+            
+
+                unsafe {
+                    *self.output_port = temp;
+                }
+                    
                 self.pins.clk().set_high()?;
                 self.pins.clk().set_low()?;
             }
