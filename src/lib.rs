@@ -342,29 +342,34 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     }
 
     //aaaa
-    pub fn output_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY) -> Result<(), PINS::Error> {
+    pub fn output_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, delay_base_us: u8) {
         // Enable the output
         // The previous last row will continue to display
-        self.pins.oe().set_low()?;
+        //self.pins.oe().set_low()?;
 
         let shift = 8 - self.brightness_bits;
 
+        //derived empirically
+        let delay_after_last_row = 5 * ROW_LENGTH / 64;
+
         // PWM cycle
         for bit in 0..self.brightness_bits {
-            self.output_single_bcm(delay, bit + shift)?;
-            delay.delay_us(10 * (1 << bit))
+            self.output_single_bcm(delay, bit + shift);
+            //prevents last row from being brighter
+            delay.delay_us(delay_after_last_row as u8);
+            self.pins.oe().set_high().ok();
+            delay.delay_us(delay_base_us * (1 << bit))
         }
         // Disable the output
         // Prevents one row from being much brighter than the others
-        self.pins.oe().set_high()?;
-        Ok(())
+        //self.pins.oe().set_high()?;
     }
 
     pub fn output_single_bcm<DELAY: DelayUs<u8>>(
         &mut self,
         delay: &mut DELAY,
         bit: u8,
-    ) -> Result<(), PINS::Error> {
+    ) {
         let mask = 1 << bit;
 
         for (count, row) in self.data.iter().enumerate() {
@@ -396,48 +401,46 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
                     *self.output_port = temp;
                 }
 
-                self.pins.clk().set_high()?;
-                self.pins.clk().set_low()?;
+                self.pins.clk().set_high().ok();
+                self.pins.clk().set_low().ok();
             }
-            self.pins.oe().set_high()?;
+            self.pins.oe().set_high().ok();
             // Prevents ghosting, no idea why
             delay.delay_us(1);
-            self.pins.lat().set_low()?;
+            self.pins.lat().set_low().ok();
             delay.delay_us(1);
-            self.pins.lat().set_high()?;
+            self.pins.lat().set_high().ok();
             // Select row
             if count & 1 != 0 {
-                self.pins.a().set_high()?;
+                self.pins.a().set_high().ok();
             } else {
-                self.pins.a().set_low()?;
+                self.pins.a().set_low().ok();
             }
             if count & 2 != 0 {
-                self.pins.b().set_high()?;
+                self.pins.b().set_high().ok();
             } else {
-                self.pins.b().set_low()?;
+                self.pins.b().set_low().ok();
             }
             if count & 4 != 0 {
-                self.pins.c().set_high()?;
+                self.pins.c().set_high().ok();
             } else {
-                self.pins.c().set_low()?;
+                self.pins.c().set_low().ok();
             }
             #[cfg(not(feature = "stripe-multiplexing"))]
             if count & 8 != 0 {
-                self.pins.d().set_high()?;
+                self.pins.d().set_high().ok();
             } else {
-                self.pins.d().set_low()?;
+                self.pins.d().set_low().ok();
             }
             #[cfg(feature = "size-64x64")]
             if count & 16 != 0 {
-                self.pins.f().set_high()?;
+                self.pins.f().set_high().ok();
             } else {
-                self.pins.f().set_low()?;
+                self.pins.f().set_low().ok();
             }
             delay.delay_us(1);
-            self.pins.oe().set_low()?;
+            self.pins.oe().set_low().ok();
         }
-
-        Ok(())
     }
 
     /// Clear the output
