@@ -352,7 +352,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
         // PWM cycle
         for bit in 0..self.brightness_bits {
             self.output_single_bcm(delay, bit + shift)?;
-            delay.delay_us(1 << bit)
+            delay.delay_us(10 * (1 << bit))
         }
         // Disable the output
         // Prevents one row from being much brighter than the others
