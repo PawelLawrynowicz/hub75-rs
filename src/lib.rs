@@ -53,6 +53,7 @@ pub struct Hub75<PINS, const ROW_LENGTH: usize> {
 
     brightness_step: u8,
     brightness_count: u8,
+    brightness_bits: u8,
     pins: PINS,
 }
 
@@ -225,7 +226,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     /// IMPORTANT: When using stripe multiplexing set row width to double of the actual width of the screen.
     pub fn new(pins: PINS, brightness_bits: u8, output_port: &mut u8) -> Self {
         assert!(brightness_bits < 9 && brightness_bits > 0);
-        
+
         #[cfg(not(feature = "stripe-multiplexing"))]
         let data = [[(0, 0, 0, 0, 0, 0); ROW_LENGTH]; NUM_ROWS];
         #[cfg(feature = "stripe-multiplexing")]
@@ -237,8 +238,9 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
             data,
             brightness_step,
             brightness_count,
+            brightness_bits,
             output_port,
-            pins
+            pins,
         }
     }
 
@@ -261,7 +263,11 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
         Ok(())
     }
 
-    pub fn output_single<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, brightness: u8) -> Result<(), PINS::Error>{
+    pub fn output_single<DELAY: DelayUs<u8>>(
+        &mut self,
+        delay: &mut DELAY,
+        brightness: u8,
+    ) -> Result<(), PINS::Error> {
         for (count, row) in self.data.iter().enumerate() {
             for element in row.iter() {
                 //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
@@ -286,12 +292,110 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
                 if element.5 >= brightness {
                     temp += 32;
                 }
-            
 
                 unsafe {
                     *self.output_port = temp;
                 }
-                    
+
+                self.pins.clk().set_high()?;
+                self.pins.clk().set_low()?;
+            }
+            self.pins.oe().set_high()?;
+            // Prevents ghosting, no idea why
+            delay.delay_us(1);
+            self.pins.lat().set_low()?;
+            delay.delay_us(1);
+            self.pins.lat().set_high()?;
+            // Select row
+            if count & 1 != 0 {
+                self.pins.a().set_high()?;
+            } else {
+                self.pins.a().set_low()?;
+            }
+            if count & 2 != 0 {
+                self.pins.b().set_high()?;
+            } else {
+                self.pins.b().set_low()?;
+            }
+            if count & 4 != 0 {
+                self.pins.c().set_high()?;
+            } else {
+                self.pins.c().set_low()?;
+            }
+            #[cfg(not(feature = "stripe-multiplexing"))]
+            if count & 8 != 0 {
+                self.pins.d().set_high()?;
+            } else {
+                self.pins.d().set_low()?;
+            }
+            #[cfg(feature = "size-64x64")]
+            if count & 16 != 0 {
+                self.pins.f().set_high()?;
+            } else {
+                self.pins.f().set_low()?;
+            }
+            delay.delay_us(1);
+            self.pins.oe().set_low()?;
+        }
+
+        Ok(())
+    }
+
+    //aaaa
+    pub fn output_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY) -> Result<(), PINS::Error> {
+        // Enable the output
+        // The previous last row will continue to display
+        self.pins.oe().set_low()?;
+
+        let shift = 8 - self.brightness_bits;
+
+        // PWM cycle
+        for bit in 0..self.brightness_bits {
+            self.output_single_bcm(delay, bit + shift)?;
+            delay.delay_us(1 << bit)
+        }
+        // Disable the output
+        // Prevents one row from being much brighter than the others
+        self.pins.oe().set_high()?;
+        Ok(())
+    }
+
+    pub fn output_single_bcm<DELAY: DelayUs<u8>>(
+        &mut self,
+        delay: &mut DELAY,
+        bit: u8,
+    ) -> Result<(), PINS::Error> {
+        let mask = 1 << bit;
+
+        for (count, row) in self.data.iter().enumerate() {
+            for element in row.iter() {
+                //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
+                //in this order: r1,g1,b1,r2,g2,b2
+                let mut temp: u8 = 0;
+
+                if element.0 & mask != 0 {
+                    temp += 1;
+                }
+                if element.1 & mask != 0 {
+                    temp += 2;
+                }
+                if element.2 & mask != 0 {
+                    temp += 4;
+                }
+                if element.3 & mask != 0 {
+                    temp += 8;
+                }
+                if element.4 & mask != 0 {
+                    temp += 16;
+                }
+                if element.5 & mask != 0 {
+                    temp += 32;
+                }
+
+                unsafe {
+                    *self.output_port = temp;
+                }
+
                 self.pins.clk().set_high()?;
                 self.pins.clk().set_low()?;
             }
