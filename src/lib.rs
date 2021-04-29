@@ -42,12 +42,12 @@ const GAMMA8: [u8; 256] = [
 ];
 
 struct ColorPins{
-    r1: u8,
-    g1: u8,
-    b1: u8,
-    r2: u8,
-    g2: u8,
-    b2: u8,
+    r1: u32,
+    g1: u32,
+    b1: u32,
+    r2: u32,
+    g2: u32,
+    b2: u32,
     reset: u32,
 }
 
@@ -262,7 +262,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
             r2,
             g2,
             b2,
-            reset: !(r1 as u32 + g1 as u32 + b1 as u32 + r2 as u32 +g2 as u32 + b2 as u32),
+            reset: !(r1 + g1 + b1 + r2 + g2 + b2),
         };
 
         Self {
@@ -308,22 +308,22 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
                 let c_pins = &self.color_pins;
 
                 if element.0 >= brightness {
-                    temp += c_pins.r1 as u32;
+                    temp += c_pins.r1;
                 }
                 if element.1 >= brightness {
-                    temp += c_pins.g1 as u32;
+                    temp += c_pins.g1;
                 }
                 if element.2 >= brightness {
-                    temp += c_pins.b1 as u32;
+                    temp += c_pins.b1;
                 }
                 if element.3 >= brightness {
-                    temp += c_pins.r2 as u32;
+                    temp += c_pins.r2;
                 }
                 if element.4 >= brightness {
-                    temp += c_pins.g2 as u32;
+                    temp += c_pins.g2;
                 }
                 if element.5 >= brightness {
-                    temp += c_pins.b2 as u32;
+                    temp += c_pins.b2;
                 }
 
                 unsafe {
@@ -384,13 +384,13 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
         let shift = 8 - self.brightness_bits;
 
         //derived empirically, without it the last row will be dimmer than others
-        let delay_after_last_row = 10 * ROW_LENGTH / 64;
+        let delay_after_last_row = (10 * ROW_LENGTH / 64) as u8;
 
         // PWM cycle
         for bit in 0..self.brightness_bits {
             self.output_single_bcm(delay, bit + shift);
             //prevents last row from being brighter
-            delay.delay_us(delay_after_last_row as u8);
+            delay.delay_us(delay_after_last_row);
             self.pins.oe().set_high().ok();
             delay.delay_us(delay_base_us * (1 << bit))
         }
@@ -414,22 +414,22 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
                 let c_pins = &self.color_pins;
 
                 if element.0 & mask != 0 {
-                    temp += c_pins.r1 as u32;
+                    temp += c_pins.r1;
                 }
                 if element.1 & mask != 0 {
-                    temp += c_pins.g1 as u32;
+                    temp += c_pins.g1;
                 }
                 if element.2 & mask != 0 {
-                    temp += c_pins.b1 as u32;
+                    temp += c_pins.b1;
                 }
                 if element.3 & mask != 0 {
-                    temp += c_pins.r2 as u32;
+                    temp += c_pins.r2;
                 }
                 if element.4 & mask != 0 {
-                    temp += c_pins.g2 as u32;
+                    temp += c_pins.g2;
                 }
                 if element.5 & mask != 0 {
-                    temp += c_pins.b2 as u32;
+                    temp += c_pins.b2;
                 }
 
                 unsafe {
