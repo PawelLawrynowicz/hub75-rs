@@ -41,17 +41,22 @@ const GAMMA8: [u8; 256] = [
     223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255,
 ];
 
-struct ColorPins{
-    r1: u32,
-    g1: u32,
-    b1: u32,
-    r2: u32,
-    g2: u32,
-    b2: u32,
-    reset: u32,
+struct Pins{
+    r1: u16,
+    g1: u16,
+    b1: u16,
+    r2: u16,
+    g2: u16,
+    b2: u16,
+    a: u16,
+    b: u16,
+    c: u16,
+    clock: u16,
+    latch: u16,
+    oe: u16,
 }
 
-pub struct Hub75<PINS, const ROW_LENGTH: usize> {
+pub struct Hub75<const ROW_LENGTH: usize> {
     //r1, g1, b1, r2, g2, b2, column, row
     #[cfg(not(feature = "stripe-multiplexing"))]
     data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS],
@@ -59,185 +64,20 @@ pub struct Hub75<PINS, const ROW_LENGTH: usize> {
     #[cfg(feature = "stripe-multiplexing")]
     data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS / 2],
 
-    output_port: *mut u32,
+    output_port: *mut u16,
 
     brightness_step: u8,
     brightness_count: u8,
     brightness_bits: u8,
-    pins: PINS,
-    color_pins: ColorPins,
+    pins: Pins,
 }
 
-/// A trait, so that it's easier to reason about the pins
-/// Implemented for a tuple `(r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe)`
-/// with every element implementing `OutputPin`
-/// f pin is needed for 64x64 matrix support
-pub trait Outputs {
-    type Error;
-    type A: OutputPin<Error = Self::Error>;
-    type B: OutputPin<Error = Self::Error>;
-    type C: OutputPin<Error = Self::Error>;
-    #[cfg(not(feature = "stripe-multiplexing"))]
-    type D: OutputPin<Error = Self::Error>;
-    #[cfg(feature = "size-64x64")]
-    type F: OutputPin<Error = Self::Error>;
-    type CLK: OutputPin<Error = Self::Error>;
-    type LAT: OutputPin<Error = Self::Error>;
-    type OE: OutputPin<Error = Self::Error>;
-    fn a(&mut self) -> &mut Self::A;
-    fn b(&mut self) -> &mut Self::B;
-    fn c(&mut self) -> &mut Self::C;
-    #[cfg(not(feature = "stripe-multiplexing"))]
-    fn d(&mut self) -> &mut Self::D;
-    #[cfg(feature = "size-64x64")]
-    fn f(&mut self) -> &mut Self::F;
-    fn clk(&mut self) -> &mut Self::CLK;
-    fn lat(&mut self) -> &mut Self::LAT;
-    fn oe(&mut self) -> &mut Self::OE;
-}
 
-#[cfg(feature = "size-64x64")]
-#[cfg(not(feature = "stripe-multiplexing"))]
-impl<
-        E,
-        A: OutputPin<Error = E>,
-        B: OutputPin<Error = E>,
-        C: OutputPin<Error = E>,
-        D: OutputPin<Error = E>,
-        F: OutputPin<Error = E>,
-        CLK: OutputPin<Error = E>,
-        LAT: OutputPin<Error = E>,
-        OE: OutputPin<Error = E>,
-    > Outputs for (A, B, C, D, F, CLK, LAT, OE)
-{
-    type Error = E;
-    type A = A;
-    type B = B;
-    type C = C;
-    type D = D;
-    type F = F;
-    type CLK = CLK;
-    type LAT = LAT;
-    type OE = OE;
-    fn a(&mut self) -> &mut A {
-        &mut self.0
-    }
-    fn b(&mut self) -> &mut B {
-        &mut self.1
-    }
-    fn c(&mut self) -> &mut C {
-        &mut self.2
-    }
-    fn d(&mut self) -> &mut D {
-        &mut self.3
-    }
-    fn f(&mut self) -> &mut F {
-        &mut self.4
-    }
-    fn clk(&mut self) -> &mut CLK {
-        &mut self.5
-    }
-    fn lat(&mut self) -> &mut LAT {
-        &mut self.6
-    }
-    fn oe(&mut self) -> &mut OE {
-        &mut self.7
-    }
-}
+impl<const ROW_LENGTH: usize> Hub75<ROW_LENGTH> {
 
-#[cfg(not(feature = "size-64x64"))]
-#[cfg(not(feature = "stripe-multiplexing"))]
-impl<
-        E,
-        A: OutputPin<Error = E>,
-        B: OutputPin<Error = E>,
-        C: OutputPin<Error = E>,
-        D: OutputPin<Error = E>,
-        CLK: OutputPin<Error = E>,
-        LAT: OutputPin<Error = E>,
-        OE: OutputPin<Error = E>,
-    > Outputs for (A, B, C, D, CLK, LAT, OE)
-{
-    type Error = E;
-    type A = A;
-    type B = B;
-    type C = C;
-    type D = D;
-    type CLK = CLK;
-    type LAT = LAT;
-    type OE = OE;
-    fn a(&mut self) -> &mut A {
-        &mut self.0
-    }
-    fn b(&mut self) -> &mut B {
-        &mut self.1
-    }
-    fn c(&mut self) -> &mut C {
-        &mut self.2
-    }
-    fn d(&mut self) -> &mut D {
-        &mut self.3
-    }
-    fn clk(&mut self) -> &mut CLK {
-        &mut self.4
-    }
-    fn lat(&mut self) -> &mut LAT {
-        &mut self.5
-    }
-    fn oe(&mut self) -> &mut OE {
-        &mut self.6
-    }
-}
-
-#[cfg(feature = "stripe-multiplexing")]
-impl<
-        E,
-        A: OutputPin<Error = E>,
-        B: OutputPin<Error = E>,
-        C: OutputPin<Error = E>,
-        CLK: OutputPin<Error = E>,
-        LAT: OutputPin<Error = E>,
-        OE: OutputPin<Error = E>,
-    > Outputs for (A, B, C, CLK, LAT, OE)
-{
-    type Error = E;
-    type A = A;
-    type B = B;
-    type C = C;
-    type CLK = CLK;
-    type LAT = LAT;
-    type OE = OE;
-    fn a(&mut self) -> &mut A {
-        &mut self.0
-    }
-    fn b(&mut self) -> &mut B {
-        &mut self.1
-    }
-    fn c(&mut self) -> &mut C {
-        &mut self.2
-    }
-    fn clk(&mut self) -> &mut CLK {
-        &mut self.3
-    }
-    fn lat(&mut self) -> &mut LAT {
-        &mut self.4
-    }
-    fn oe(&mut self) -> &mut OE {
-        &mut self.5
-    }
-}
-
-impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
-    /// Create a new hub instance
-    /// `brightness_bits` provides the number of brightness_bits for each color (1-8).
-    /// More bits allow for much more colors, especially in combination with the gamma correction,
-    /// but each extra bit doubles the time `output` will take. This might lead to noticable flicker.
-    ///
-    /// 3-4 bits are usually a good choice.
-    /// IMPORTANT: When using stripe multiplexing set row width to double of the actual width of the screen.
     /// TODO: Write better documentation
-    /// color_pins are numbers of pins r1, g1, b1, r2, g2, b2.
-    pub fn new(pins: PINS, brightness_bits: u8, output_port: &mut u32, color_pins: (u8,u8,u8,u8,u8,u8)) -> Self {
+    /// color_pins are numbers of pins r1, g1, b1, r2, g2, b2, A, B, C, clock, latch, OE
+    pub fn new(brightness_bits: u8, output_port: &mut u16, color_pins: (u8,u8,u8,u8,u8,u8,u8,u8,u8,u8,u8,u8)) -> Self {
         assert!(brightness_bits < 9 && brightness_bits > 0);
 
         #[cfg(not(feature = "stripe-multiplexing"))]
@@ -254,15 +94,26 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
         let r2= 1 << color_pins.3;
         let g2= 1 << color_pins.4;
         let b2= 1 << color_pins.5;
+        let a= 1 << color_pins.6;
+        let b= 1 << color_pins.7;
+        let c= 1 << color_pins.8;
+        let clock= 1 << color_pins.9;
+        let latch= 1 << color_pins.10;
+        let oe= 1 << color_pins.11;
 
-        let c_pins = ColorPins{
+        let pins = Pins{
             r1,
             g1,
             b1,
             r2,
             g2,
             b2,
-            reset: !(r1 + g1 + b1 + r2 + g2 + b2),
+            a,
+            b,
+            c,
+            clock,
+            latch,
+            oe
         };
 
         Self {
@@ -272,7 +123,6 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
             brightness_bits,
             output_port,
             pins,
-            color_pins: c_pins,
         }
     }
 
@@ -280,122 +130,116 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     ///
     /// Takes some time and should be called quite often, otherwise the output
     /// will flicker
-    pub fn output<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY) -> Result<(), PINS::Error> {
-        // Enable the output
-        // The previous last row will continue to display
-        self.pins.oe().set_low()?;
+    pub fn output<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY) {
         // PWM cycle
         for mut brightness in 0..self.brightness_count {
             brightness = (brightness + 1).saturating_mul(self.brightness_step);
-            self.output_single(delay, brightness)?;
+            self.output_single(delay, brightness);
         }
-        // Disable the output
-        // Prevents one row from being much brighter than the others
-        self.pins.oe().set_high()?;
-        Ok(())
     }
 
     pub fn output_single<DELAY: DelayUs<u8>>(
         &mut self,
         delay: &mut DELAY,
         brightness: u8,
-    ) -> Result<(), PINS::Error> {
+    ) {
         for (count, row) in self.data.iter().enumerate() {
+            let pins = &self.pins;
+            let mut address = 0;
+            let mut output_buffer = pins.latch + address;
+
             for element in row.iter() {
+                output_buffer = pins.latch + address;
                 //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
                 //in this order: r1,g1,b1,r2,g2,b2
-                let mut temp: u32 = 0;
-                let c_pins = &self.color_pins;
 
                 if element.0 >= brightness {
-                    temp += c_pins.r1;
+                    output_buffer += pins.r1;
                 }
                 if element.1 >= brightness {
-                    temp += c_pins.g1;
+                    output_buffer += pins.g1;
                 }
                 if element.2 >= brightness {
-                    temp += c_pins.b1;
+                    output_buffer += pins.b1;
                 }
                 if element.3 >= brightness {
-                    temp += c_pins.r2;
+                    output_buffer += pins.r2;
                 }
                 if element.4 >= brightness {
-                    temp += c_pins.g2;
+                    output_buffer += pins.g2;
                 }
                 if element.5 >= brightness {
-                    temp += c_pins.b2;
+                    output_buffer += pins.b2;
                 }
+
+                //clock will be set to high when we push out values
+                output_buffer += pins.clock;
 
                 unsafe {
-                    *self.output_port = temp;
+                    *self.output_port = output_buffer;
+                    //set clock low
+                    output_buffer -= pins.clock;
+                    *self.output_port = output_buffer;
                 }
-
-                self.pins.clk().set_high()?;
-                self.pins.clk().set_low()?;
             }
-            self.pins.oe().set_high()?;
+            output_buffer += pins.oe;
+            output_buffer -= pins.latch;
+            unsafe{
+                *self.output_port = output_buffer;
+            }
+            output_buffer += pins.latch;
+            delay.delay_us(1);
+            unsafe{
+                *self.output_port = output_buffer;
+            }
+
+            /*self.pins.oe().set_high()?;
             // Prevents ghosting, no idea why
             delay.delay_us(1);
             self.pins.lat().set_low()?;
             delay.delay_us(1);
             self.pins.lat().set_high()?;
-            // Select row
+            // Select row*/
+
+            address = 0;
+
             if count & 1 != 0 {
-                self.pins.a().set_high()?;
-            } else {
-                self.pins.a().set_low()?;
-            }
+                address += pins.a;
+            } 
             if count & 2 != 0 {
-                self.pins.b().set_high()?;
-            } else {
-                self.pins.b().set_low()?;
-            }
+                address += pins.b;
+            } 
             if count & 4 != 0 {
-                self.pins.c().set_high()?;
-            } else {
-                self.pins.c().set_low()?;
+                address += pins.c;
+            } 
+
+            output_buffer += address;
+
+            unsafe{
+                *self.output_port = output_buffer;
             }
-            #[cfg(not(feature = "stripe-multiplexing"))]
-            if count & 8 != 0 {
-                self.pins.d().set_high()?;
-            } else {
-                self.pins.d().set_low()?;
+
+            /*delay.delay_us(1);
+            self.pins.oe().set_low()?;*/
+
+            output_buffer -= pins.oe;
+
+            unsafe{
+                *self.output_port = output_buffer;
             }
-            #[cfg(feature = "size-64x64")]
-            if count & 16 != 0 {
-                self.pins.f().set_high()?;
-            } else {
-                self.pins.f().set_low()?;
-            }
-            delay.delay_us(1);
-            self.pins.oe().set_low()?;
         }
 
-        Ok(())
     }
 
 
     pub fn output_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, delay_base_us: u8) {
-        // Enable the output
-        // The previous last row will continue to display
-        //self.pins.oe().set_low()?;
-
         let shift = 8 - self.brightness_bits;
-
-        //derived empirically, without it the last row will be dimmer than others
-        let delay_after_last_row = (10 * ROW_LENGTH / 64) as u8;
 
         // PWM cycle
         for bit in 0..self.brightness_bits {
             self.output_single_bcm(delay, bit + shift);
-            //prevents last row from being brighter
-            delay.delay_us(delay_after_last_row);
-            self.pins.oe().set_high().ok();
             delay.delay_us(delay_base_us * (1 << bit))
         }
-        // Disable the output
-        // Prevents one row from being much brighter than the others
-        //self.pins.oe().set_high()?;
     }
 
     pub fn output_single_bcm<DELAY: DelayUs<u8>>(
@@ -404,77 +248,107 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
         bit: u8,
     ) {
         let mask = 1 << bit;
+        //derived empirically, without it the last row will be dimmer than others
+        let delay_after_last_row = (5 * ROW_LENGTH / 64) as u8;
+
+        let pins = &self.pins;
+        let mut address = 0;
+        let mut output_buffer = 0;
+        let mut first_iter = true;
 
         for (count, row) in self.data.iter().enumerate() {
             for element in row.iter() {
+                output_buffer = address;
+                if first_iter {
+                    output_buffer |= pins.oe;
+                }
+
                 //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
                 //in this order: r1,g1,b1,r2,g2,b2
-                let mut temp: u32 = 0;
-                let c_pins = &self.color_pins;
-
                 if element.0 & mask != 0 {
-                    temp += c_pins.r1;
+                    output_buffer |= pins.r1;
                 }
                 if element.1 & mask != 0 {
-                    temp += c_pins.g1;
+                    output_buffer |= pins.g1;
                 }
                 if element.2 & mask != 0 {
-                    temp += c_pins.b1;
+                    output_buffer |= pins.b1;
                 }
                 if element.3 & mask != 0 {
-                    temp += c_pins.r2;
+                    output_buffer |= pins.r2;
                 }
                 if element.4 & mask != 0 {
-                    temp += c_pins.g2;
+                    output_buffer |= pins.g2;
                 }
                 if element.5 & mask != 0 {
-                    temp += c_pins.b2;
+                    output_buffer |= pins.b2;
                 }
 
                 unsafe {
-                    *self.output_port = temp;
+                    *self.output_port = output_buffer;
+                    output_buffer |= pins.clock;
+                    *self.output_port = output_buffer;
+                    output_buffer &= !pins.clock;
+                    *self.output_port = output_buffer;
                 }
+            }
+            first_iter = false;
+            output_buffer |= pins.oe;
 
-                self.pins.clk().set_high().ok();
-                self.pins.clk().set_low().ok();
+            unsafe{
+                *self.output_port = output_buffer;
             }
-            self.pins.oe().set_high().ok();
-            // Prevents ghosting, no idea why
+
             delay.delay_us(1);
-            self.pins.lat().set_low().ok();
+
+            output_buffer &= !pins.latch;
+            unsafe{
+                *self.output_port = output_buffer;
+            }
+
             delay.delay_us(1);
-            self.pins.lat().set_high().ok();
-            // Select row
+
+            output_buffer |= pins.latch;
+
+            unsafe{
+                *self.output_port = output_buffer;
+            }
+
+            address = 0;
+
             if count & 1 != 0 {
-                self.pins.a().set_high().ok();
-            } else {
-                self.pins.a().set_low().ok();
-            }
+                address |= pins.a;
+            } 
             if count & 2 != 0 {
-                self.pins.b().set_high().ok();
-            } else {
-                self.pins.b().set_low().ok();
-            }
+                address |= pins.b;
+            } 
             if count & 4 != 0 {
-                self.pins.c().set_high().ok();
-            } else {
-                self.pins.c().set_low().ok();
+                address |= pins.c;
+            } 
+
+            output_buffer &= !(pins.a | pins.b | pins.c);
+            output_buffer |= address;
+
+            unsafe{
+                *self.output_port = output_buffer;
             }
-            #[cfg(not(feature = "stripe-multiplexing"))]
-            if count & 8 != 0 {
-                self.pins.d().set_high().ok();
-            } else {
-                self.pins.d().set_low().ok();
-            }
-            #[cfg(feature = "size-64x64")]
-            if count & 16 != 0 {
-                self.pins.f().set_high().ok();
-            } else {
-                self.pins.f().set_low().ok();
-            }
+
             delay.delay_us(1);
-            self.pins.oe().set_low().ok();
+
+            output_buffer &= !pins.oe;
+
+            unsafe{
+                *self.output_port = output_buffer;
+            }
         }
+
+        /*//prevents last row from being brighter
+        delay.delay_us(delay_after_last_row);
+
+        output_buffer |= pins.oe;
+        unsafe{
+            *self.output_port = output_buffer;
+        }*/
     }
 
     /// Clear the output
@@ -502,7 +376,7 @@ use embedded_graphics::{
     DrawTarget,
 };
 
-impl<PINS: Outputs, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<PINS, ROW_LENGTH> {
+impl<const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<ROW_LENGTH> {
     type Error = core::convert::Infallible;
 
     #[cfg(not(feature = "stripe-multiplexing"))]
