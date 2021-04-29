@@ -41,6 +41,16 @@ const GAMMA8: [u8; 256] = [
     223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255,
 ];
 
+struct ColorPins{
+    r1: u8,
+    g1: u8,
+    b1: u8,
+    r2: u8,
+    g2: u8,
+    b2: u8,
+    reset: u32,
+}
+
 pub struct Hub75<PINS, const ROW_LENGTH: usize> {
     //r1, g1, b1, r2, g2, b2, column, row
     #[cfg(not(feature = "stripe-multiplexing"))]
@@ -49,12 +59,13 @@ pub struct Hub75<PINS, const ROW_LENGTH: usize> {
     #[cfg(feature = "stripe-multiplexing")]
     data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS / 2],
 
-    output_port: *mut u8,
+    output_port: *mut u32,
 
     brightness_step: u8,
     brightness_count: u8,
     brightness_bits: u8,
     pins: PINS,
+    color_pins: ColorPins,
 }
 
 /// A trait, so that it's easier to reason about the pins
@@ -224,7 +235,9 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
     ///
     /// 3-4 bits are usually a good choice.
     /// IMPORTANT: When using stripe multiplexing set row width to double of the actual width of the screen.
-    pub fn new(pins: PINS, brightness_bits: u8, output_port: &mut u8) -> Self {
+    /// TODO: Write better documentation
+    /// color_pins are numbers of pins r1, g1, b1, r2, g2, b2.
+    pub fn new(pins: PINS, brightness_bits: u8, output_port: &mut u32, color_pins: (u8,u8,u8,u8,u8,u8)) -> Self {
         assert!(brightness_bits < 9 && brightness_bits > 0);
 
         #[cfg(not(feature = "stripe-multiplexing"))]
@@ -234,6 +247,24 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
 
         let brightness_step = 1 << (8 - brightness_bits);
         let brightness_count = ((1 << brightness_bits as u16) - 1) as u8;
+
+        let r1 = 1 << color_pins.0;
+        let g1 = 1 << color_pins.1;
+        let b1 = 1 << color_pins.2;
+        let r2= 1 << color_pins.3;
+        let g2= 1 << color_pins.4;
+        let b2= 1 << color_pins.5;
+
+        let c_pins = ColorPins{
+            r1,
+            g1,
+            b1,
+            r2,
+            g2,
+            b2,
+            reset: !(r1 as u32 + g1 as u32 + b1 as u32 + r2 as u32 +g2 as u32 + b2 as u32),
+        };
+
         Self {
             data,
             brightness_step,
@@ -241,6 +272,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
             brightness_bits,
             output_port,
             pins,
+            color_pins: c_pins,
         }
     }
 
@@ -272,29 +304,31 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
             for element in row.iter() {
                 //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
                 //in this order: r1,g1,b1,r2,g2,b2
-                let mut temp: u8 = 0;
+                let mut temp: u32 = 0;
+                let c_pins = &self.color_pins;
 
                 if element.0 >= brightness {
-                    temp += 1;
+                    temp += c_pins.r1 as u32;
                 }
                 if element.1 >= brightness {
-                    temp += 2;
+                    temp += c_pins.g1 as u32;
                 }
                 if element.2 >= brightness {
-                    temp += 4;
+                    temp += c_pins.b1 as u32;
                 }
                 if element.3 >= brightness {
-                    temp += 8;
+                    temp += c_pins.r2 as u32;
                 }
                 if element.4 >= brightness {
-                    temp += 16;
+                    temp += c_pins.g2 as u32;
                 }
                 if element.5 >= brightness {
-                    temp += 32;
+                    temp += c_pins.b2 as u32;
                 }
 
                 unsafe {
-                    *self.output_port = temp;
+                    *self.output_port &= self.color_pins.reset;
+                    *self.output_port |= temp;
                 }
 
                 self.pins.clk().set_high()?;
@@ -341,7 +375,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
         Ok(())
     }
 
-    //aaaa
+
     pub fn output_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, delay_base_us: u8) {
         // Enable the output
         // The previous last row will continue to display
@@ -349,8 +383,8 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
 
         let shift = 8 - self.brightness_bits;
 
-        //derived empirically
-        let delay_after_last_row = 5 * ROW_LENGTH / 64;
+        //derived empirically, without it the last row will be dimmer than others
+        let delay_after_last_row = 10 * ROW_LENGTH / 64;
 
         // PWM cycle
         for bit in 0..self.brightness_bits {
@@ -376,29 +410,31 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
             for element in row.iter() {
                 //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
                 //in this order: r1,g1,b1,r2,g2,b2
-                let mut temp: u8 = 0;
+                let mut temp: u32 = 0;
+                let c_pins = &self.color_pins;
 
                 if element.0 & mask != 0 {
-                    temp += 1;
+                    temp += c_pins.r1 as u32;
                 }
                 if element.1 & mask != 0 {
-                    temp += 2;
+                    temp += c_pins.g1 as u32;
                 }
                 if element.2 & mask != 0 {
-                    temp += 4;
+                    temp += c_pins.b1 as u32;
                 }
                 if element.3 & mask != 0 {
-                    temp += 8;
+                    temp += c_pins.r2 as u32;
                 }
                 if element.4 & mask != 0 {
-                    temp += 16;
+                    temp += c_pins.g2 as u32;
                 }
                 if element.5 & mask != 0 {
-                    temp += 32;
+                    temp += c_pins.b2 as u32;
                 }
 
                 unsafe {
-                    *self.output_port = temp;
+                    *self.output_port &= self.color_pins.reset;
+                    *self.output_port |= temp;
                 }
 
                 self.pins.clk().set_high().ok();
