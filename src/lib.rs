@@ -327,8 +327,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
                 }
 
                 unsafe {
-                    *self.output_port &= self.color_pins.reset;
-                    *self.output_port |= temp;
+                    *self.output_port = temp;
                 }
 
                 self.pins.clk().set_high()?;
@@ -433,8 +432,7 @@ impl<PINS: Outputs, const ROW_LENGTH: usize> Hub75<PINS, ROW_LENGTH> {
                 }
 
                 unsafe {
-                    *self.output_port &= self.color_pins.reset;
-                    *self.output_port |= temp;
+                    *self.output_port = temp;
                 }
 
                 self.pins.clk().set_high().ok();
