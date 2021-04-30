@@ -304,10 +304,6 @@ impl<
 
             output_buffer |= Self::PINS.latch;
 
-            unsafe {
-                *self.output_port = output_buffer;
-            }
-
             address = 0;
 
             if count & 1 != 0 {
