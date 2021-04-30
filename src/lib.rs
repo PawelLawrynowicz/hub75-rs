@@ -325,8 +325,8 @@ impl<
                 address += Self::PINS.c;
             }
 
-            output_buffer &= !(Self::PINS.a | Self::PINS.b | Self::PINS.c);
-            output_buffer |= address;
+            output_buffer &= !(Self::PINS.a + Self::PINS.b + Self::PINS.c);
+            output_buffer += address;
 
             unsafe {
                 *self.output_port = output_buffer;
