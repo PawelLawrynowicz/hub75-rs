@@ -284,7 +284,7 @@ impl<
                 }
 
                 output_buffer += Self::PINS.clock;
-                
+
                 unsafe {
                     *self.output_port = output_buffer;
                     output_buffer -= Self::PINS.clock;
@@ -292,15 +292,10 @@ impl<
                 }
             }
             first_iter = false;
+
             output_buffer |= Self::PINS.oe;
-
-            unsafe {
-                *self.output_port = output_buffer;
-            }
-
-            delay.delay_us(1);
-
             output_buffer &= !Self::PINS.latch;
+
             unsafe {
                 *self.output_port = output_buffer;
             }
