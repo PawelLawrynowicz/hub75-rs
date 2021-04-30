@@ -285,9 +285,9 @@ impl<
 
                 unsafe {
                     *self.output_port = output_buffer;
-                    output_buffer |= Self::PINS.clock;
+                    output_buffer += Self::PINS.clock;
                     *self.output_port = output_buffer;
-                    output_buffer &= !Self::PINS.clock;
+                    output_buffer -= !Self::PINS.clock;
                     *self.output_port = output_buffer;
                 }
             }
