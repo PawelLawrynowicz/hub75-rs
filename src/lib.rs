@@ -265,22 +265,22 @@ impl<
                 //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
                 //in this order: r1,g1,b1,r2,g2,b2
                 if element.0 & mask != 0 {
-                    output_buffer |= Self::PINS.r1;
+                    output_buffer += Self::PINS.r1;
                 }
                 if element.1 & mask != 0 {
-                    output_buffer |= Self::PINS.g1;
+                    output_buffer += Self::PINS.g1;
                 }
                 if element.2 & mask != 0 {
-                    output_buffer |= Self::PINS.b1;
+                    output_buffer += Self::PINS.b1;
                 }
                 if element.3 & mask != 0 {
-                    output_buffer |= Self::PINS.r2;
+                    output_buffer += Self::PINS.r2;
                 }
                 if element.4 & mask != 0 {
-                    output_buffer |= Self::PINS.g2;
+                    output_buffer += Self::PINS.g2;
                 }
                 if element.5 & mask != 0 {
-                    output_buffer |= Self::PINS.b2;
+                    output_buffer += Self::PINS.b2;
                 }
 
                 unsafe {
