@@ -300,8 +300,6 @@ impl<
                 *self.output_port = output_buffer;
             }
 
-            delay.delay_us(1);
-
             output_buffer |= Self::PINS.latch;
 
             address = 0;
@@ -322,7 +320,7 @@ impl<
             unsafe {
                 *self.output_port = output_buffer;
             }
-            
+
             output_buffer &= !Self::PINS.oe;
 
             delay.delay_us(1);
