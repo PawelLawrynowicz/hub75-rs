@@ -249,7 +249,7 @@ impl<
     pub fn output_single_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, bit: u8) {
         let mask = 1 << bit;
         //derived empirically, without it the last row will be dimmer than others
-        let delay_after_last_row = (5 * ROW_LENGTH / 64) as u8;
+        //let delay_after_last_row = (5 * ROW_LENGTH / 64) as u8;
 
         //hacky, but it's the most efficient way
         let mut address = Self::PINS.oe;
