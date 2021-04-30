@@ -41,7 +41,7 @@ const GAMMA8: [u8; 256] = [
     223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255,
 ];
 
-struct Pins{
+struct Pins {
     r1: u16,
     g1: u16,
     b1: u16,
@@ -55,8 +55,21 @@ struct Pins{
     latch: u16,
     oe: u16,
 }
-
-pub struct Hub75<const ROW_LENGTH: usize> {
+pub struct Hub75<
+    const ROW_LENGTH: usize,
+    const R1: u16,
+    const G1: u16,
+    const B1: u16,
+    const R2: u16,
+    const G2: u16,
+    const B2: u16,
+    const A: u16,
+    const B: u16,
+    const C: u16,
+    const CLOCK: u16,
+    const LATCH: u16,
+    const UE: u16,
+> {
     //r1, g1, b1, r2, g2, b2, column, row
     #[cfg(not(feature = "stripe-multiplexing"))]
     data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS],
@@ -69,15 +82,42 @@ pub struct Hub75<const ROW_LENGTH: usize> {
     brightness_step: u8,
     brightness_count: u8,
     brightness_bits: u8,
-    pins: Pins,
 }
 
-
-impl<const ROW_LENGTH: usize> Hub75<ROW_LENGTH> {
+impl<
+        const ROW_LENGTH: usize,
+        const R1: u16,
+        const G1: u16,
+        const B1: u16,
+        const R2: u16,
+        const G2: u16,
+        const B2: u16,
+        const A: u16,
+        const B: u16,
+        const C: u16,
+        const CLOCK: u16,
+        const LATCH: u16,
+        const OE: u16,
+    > Hub75<ROW_LENGTH, R1, G1, B1, R2, G2, B2, A, B, C, CLOCK, LATCH, OE>
+{
+    const PINS: Pins = Pins {
+        r1: 1 << R1,
+        g1: 1 << G1,
+        b1: 1 << B1,
+        r2: 1 << R2,
+        g2: 1 << G2,
+        b2: 1 << B2,
+        a: 1 << A,
+        b: 1 << B,
+        c: 1 << C,
+        clock: 1 << CLOCK,
+        latch: 1 << LATCH,
+        oe: 1 << OE,
+    };
 
     /// TODO: Write better documentation
     /// color_pins are numbers of pins r1, g1, b1, r2, g2, b2, A, B, C, clock, latch, OE
-    pub fn new(brightness_bits: u8, output_port: &mut u16, color_pins: (u8,u8,u8,u8,u8,u8,u8,u8,u8,u8,u8,u8)) -> Self {
+    pub fn new(brightness_bits: u8, output_port: &mut u16) -> Self {
         assert!(brightness_bits < 9 && brightness_bits > 0);
 
         #[cfg(not(feature = "stripe-multiplexing"))]
@@ -88,41 +128,12 @@ impl<const ROW_LENGTH: usize> Hub75<ROW_LENGTH> {
         let brightness_step = 1 << (8 - brightness_bits);
         let brightness_count = ((1 << brightness_bits as u16) - 1) as u8;
 
-        let r1 = 1 << color_pins.0;
-        let g1 = 1 << color_pins.1;
-        let b1 = 1 << color_pins.2;
-        let r2= 1 << color_pins.3;
-        let g2= 1 << color_pins.4;
-        let b2= 1 << color_pins.5;
-        let a= 1 << color_pins.6;
-        let b= 1 << color_pins.7;
-        let c= 1 << color_pins.8;
-        let clock= 1 << color_pins.9;
-        let latch= 1 << color_pins.10;
-        let oe= 1 << color_pins.11;
-
-        let pins = Pins{
-            r1,
-            g1,
-            b1,
-            r2,
-            g2,
-            b2,
-            a,
-            b,
-            c,
-            clock,
-            latch,
-            oe
-        };
-
         Self {
             data,
             brightness_step,
             brightness_count,
             brightness_bits,
             output_port,
-            pins,
         }
     }
 
@@ -138,58 +149,53 @@ impl<const ROW_LENGTH: usize> Hub75<ROW_LENGTH> {
         }
     }
 
-    pub fn output_single<DELAY: DelayUs<u8>>(
-        &mut self,
-        delay: &mut DELAY,
-        brightness: u8,
-    ) {
+    pub fn output_single<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, brightness: u8) {
         for (count, row) in self.data.iter().enumerate() {
-            let pins = &self.pins;
             let mut address = 0;
-            let mut output_buffer = pins.latch + address;
+            let mut output_buffer = Self::PINS.latch + address;
 
             for element in row.iter() {
-                output_buffer = pins.latch + address;
+                output_buffer = Self::PINS.latch + address;
                 //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
                 //in this order: r1,g1,b1,r2,g2,b2
 
                 if element.0 >= brightness {
-                    output_buffer += pins.r1;
+                    output_buffer += Self::PINS.r1;
                 }
                 if element.1 >= brightness {
-                    output_buffer += pins.g1;
+                    output_buffer += Self::PINS.g1;
                 }
                 if element.2 >= brightness {
-                    output_buffer += pins.b1;
+                    output_buffer += Self::PINS.b1;
                 }
                 if element.3 >= brightness {
-                    output_buffer += pins.r2;
+                    output_buffer += Self::PINS.r2;
                 }
                 if element.4 >= brightness {
-                    output_buffer += pins.g2;
+                    output_buffer += Self::PINS.g2;
                 }
                 if element.5 >= brightness {
-                    output_buffer += pins.b2;
+                    output_buffer += Self::PINS.b2;
                 }
 
                 //clock will be set to high when we push out values
-                output_buffer += pins.clock;
+                output_buffer += Self::PINS.clock;
 
                 unsafe {
                     *self.output_port = output_buffer;
                     //set clock low
-                    output_buffer -= pins.clock;
+                    output_buffer -= Self::PINS.clock;
                     *self.output_port = output_buffer;
                 }
             }
-            output_buffer += pins.oe;
-            output_buffer -= pins.latch;
-            unsafe{
+            output_buffer += Self::PINS.oe;
+            output_buffer -= Self::PINS.latch;
+            unsafe {
                 *self.output_port = output_buffer;
             }
-            output_buffer += pins.latch;
+            output_buffer += Self::PINS.latch;
             delay.delay_us(1);
-            unsafe{
+            unsafe {
                 *self.output_port = output_buffer;
             }
 
@@ -204,33 +210,31 @@ impl<const ROW_LENGTH: usize> Hub75<ROW_LENGTH> {
             address = 0;
 
             if count & 1 != 0 {
-                address += pins.a;
-            } 
+                address += Self::PINS.a;
+            }
             if count & 2 != 0 {
-                address += pins.b;
-            } 
+                address += Self::PINS.b;
+            }
             if count & 4 != 0 {
-                address += pins.c;
-            } 
+                address += Self::PINS.c;
+            }
 
             output_buffer += address;
 
-            unsafe{
+            unsafe {
                 *self.output_port = output_buffer;
             }
 
             /*delay.delay_us(1);
             self.pins.oe().set_low()?;*/
 
-            output_buffer -= pins.oe;
+            output_buffer -= Self::PINS.oe;
 
-            unsafe{
+            unsafe {
                 *self.output_port = output_buffer;
             }
         }
-
     }
-
 
     pub fn output_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, delay_base_us: u8) {
         let shift = 8 - self.brightness_bits;
@@ -242,16 +246,11 @@ impl<const ROW_LENGTH: usize> Hub75<ROW_LENGTH> {
         }
     }
 
-    pub fn output_single_bcm<DELAY: DelayUs<u8>>(
-        &mut self,
-        delay: &mut DELAY,
-        bit: u8,
-    ) {
+    pub fn output_single_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, bit: u8) {
         let mask = 1 << bit;
         //derived empirically, without it the last row will be dimmer than others
         let delay_after_last_row = (5 * ROW_LENGTH / 64) as u8;
 
-        let pins = &self.pins;
         let mut address = 0;
         let mut output_buffer = 0;
         let mut first_iter = true;
@@ -260,84 +259,84 @@ impl<const ROW_LENGTH: usize> Hub75<ROW_LENGTH> {
             for element in row.iter() {
                 output_buffer = address;
                 if first_iter {
-                    output_buffer |= pins.oe;
+                    output_buffer |= Self::PINS.oe;
                 }
 
                 //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
                 //in this order: r1,g1,b1,r2,g2,b2
                 if element.0 & mask != 0 {
-                    output_buffer |= pins.r1;
+                    output_buffer |= Self::PINS.r1;
                 }
                 if element.1 & mask != 0 {
-                    output_buffer |= pins.g1;
+                    output_buffer |= Self::PINS.g1;
                 }
                 if element.2 & mask != 0 {
-                    output_buffer |= pins.b1;
+                    output_buffer |= Self::PINS.b1;
                 }
                 if element.3 & mask != 0 {
-                    output_buffer |= pins.r2;
+                    output_buffer |= Self::PINS.r2;
                 }
                 if element.4 & mask != 0 {
-                    output_buffer |= pins.g2;
+                    output_buffer |= Self::PINS.g2;
                 }
                 if element.5 & mask != 0 {
-                    output_buffer |= pins.b2;
+                    output_buffer |= Self::PINS.b2;
                 }
 
                 unsafe {
                     *self.output_port = output_buffer;
-                    output_buffer |= pins.clock;
+                    output_buffer |= Self::PINS.clock;
                     *self.output_port = output_buffer;
-                    output_buffer &= !pins.clock;
+                    output_buffer &= !Self::PINS.clock;
                     *self.output_port = output_buffer;
                 }
             }
             first_iter = false;
-            output_buffer |= pins.oe;
+            output_buffer |= Self::PINS.oe;
 
-            unsafe{
+            unsafe {
                 *self.output_port = output_buffer;
             }
 
             delay.delay_us(1);
 
-            output_buffer &= !pins.latch;
-            unsafe{
+            output_buffer &= !Self::PINS.latch;
+            unsafe {
                 *self.output_port = output_buffer;
             }
 
             delay.delay_us(1);
 
-            output_buffer |= pins.latch;
+            output_buffer |= Self::PINS.latch;
 
-            unsafe{
+            unsafe {
                 *self.output_port = output_buffer;
             }
 
             address = 0;
 
             if count & 1 != 0 {
-                address |= pins.a;
-            } 
+                address |= Self::PINS.a;
+            }
             if count & 2 != 0 {
-                address |= pins.b;
-            } 
+                address |= Self::PINS.b;
+            }
             if count & 4 != 0 {
-                address |= pins.c;
-            } 
+                address |= Self::PINS.c;
+            }
 
-            output_buffer &= !(pins.a | pins.b | pins.c);
+            output_buffer &= !(Self::PINS.a | Self::PINS.b | Self::PINS.c);
             output_buffer |= address;
 
-            unsafe{
+            unsafe {
                 *self.output_port = output_buffer;
             }
 
             delay.delay_us(1);
 
-            output_buffer &= !pins.oe;
+            output_buffer &= !Self::PINS.oe;
 
-            unsafe{
+            unsafe {
                 *self.output_port = output_buffer;
             }
         }
@@ -376,7 +375,22 @@ use embedded_graphics::{
     DrawTarget,
 };
 
-impl<const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<ROW_LENGTH> {
+impl<
+        const ROW_LENGTH: usize,
+        const R1: u16,
+        const G1: u16,
+        const B1: u16,
+        const R2: u16,
+        const G2: u16,
+        const B2: u16,
+        const A: u16,
+        const B: u16,
+        const C: u16,
+        const CLOCK: u16,
+        const LATCH: u16,
+        const OE: u16,
+    > DrawTarget<Rgb888> for Hub75<ROW_LENGTH, R1, G1, B1, R2, G2, B2, A, B, C, CLOCK, LATCH, OE>
+{
     type Error = core::convert::Infallible;
 
     #[cfg(not(feature = "stripe-multiplexing"))]
