@@ -251,7 +251,8 @@ impl<
         //derived empirically, without it the last row will be dimmer than others
         //let delay_after_last_row = (5 * ROW_LENGTH / 64) as u8;
 
-        //hacky, but it's the most efficient way
+        //hacky, but it's the most efficient way. We need to make sure oe is HIGH when pushing color bits, but only during first iteration.
+        //By assigning it here we don't have to check a condition every iteration of inner loop;
         let mut address = Self::PINS.oe;
         let mut output_buffer = 0;
 
