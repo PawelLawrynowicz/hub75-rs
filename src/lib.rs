@@ -251,16 +251,13 @@ impl<
         //derived empirically, without it the last row will be dimmer than others
         let delay_after_last_row = (5 * ROW_LENGTH / 64) as u8;
 
-        let mut address = 0;
+        //hacky, but it's the most efficient way
+        let mut address = Self::PINS.oe;
         let mut output_buffer = 0;
-        let mut first_iter = true;
 
         for (count, row) in self.data.iter().enumerate() {
             for element in row.iter() {
                 output_buffer = address;
-                if first_iter {
-                    output_buffer |= Self::PINS.oe;
-                }
 
                 //Assuming data pins are connected to consecutive pins of a single port starting ftom P0
                 //in this order: r1,g1,b1,r2,g2,b2
@@ -291,7 +288,6 @@ impl<
                     *self.output_port = output_buffer;
                 }
             }
-            first_iter = false;
 
             output_buffer |= Self::PINS.oe;
             output_buffer &= !Self::PINS.latch;
