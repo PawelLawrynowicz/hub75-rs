@@ -287,7 +287,7 @@ impl<
                     *self.output_port = output_buffer;
                     output_buffer += Self::PINS.clock;
                     *self.output_port = output_buffer;
-                    output_buffer -= !Self::PINS.clock;
+                    output_buffer -= Self::PINS.clock;
                     *self.output_port = output_buffer;
                 }
             }
@@ -316,13 +316,13 @@ impl<
             address = 0;
 
             if count & 1 != 0 {
-                address |= Self::PINS.a;
+                address += Self::PINS.a;
             }
             if count & 2 != 0 {
-                address |= Self::PINS.b;
+                address += Self::PINS.b;
             }
             if count & 4 != 0 {
-                address |= Self::PINS.c;
+                address += Self::PINS.c;
             }
 
             output_buffer &= !(Self::PINS.a | Self::PINS.b | Self::PINS.c);
