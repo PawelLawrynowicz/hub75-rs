@@ -75,8 +75,8 @@ pub struct Hub75<
 }
 
 impl<
-        const ROW_LENGTH: usize,
         const PIN_POSITIONS: (u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16),
+        const ROW_LENGTH: usize,
     > Hub75<PIN_POSITIONS, ROW_LENGTH>
 {
     const PINS: Pins = Pins {
