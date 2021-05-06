@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(const_generics)]
 
 use core::usize;
 
@@ -57,18 +58,7 @@ struct Pins {
 }
 pub struct Hub75<
     const ROW_LENGTH: usize,
-    const R1: u16,
-    const G1: u16,
-    const B1: u16,
-    const R2: u16,
-    const G2: u16,
-    const B2: u16,
-    const A: u16,
-    const B: u16,
-    const C: u16,
-    const CLOCK: u16,
-    const LATCH: u16,
-    const UE: u16,
+    const PIN_POSITIONS: (u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16),
 > {
     //r1, g1, b1, r2, g2, b2, column, row
     #[cfg(not(feature = "stripe-multiplexing"))]
@@ -86,33 +76,22 @@ pub struct Hub75<
 
 impl<
         const ROW_LENGTH: usize,
-        const R1: u16,
-        const G1: u16,
-        const B1: u16,
-        const R2: u16,
-        const G2: u16,
-        const B2: u16,
-        const A: u16,
-        const B: u16,
-        const C: u16,
-        const CLOCK: u16,
-        const LATCH: u16,
-        const OE: u16,
-    > Hub75<ROW_LENGTH, R1, G1, B1, R2, G2, B2, A, B, C, CLOCK, LATCH, OE>
+        const PIN_POSITIONS: (u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16),
+    > Hub75<ROW_LENGTH, PIN_POSITIONS>
 {
     const PINS: Pins = Pins {
-        r1: 1 << R1,
-        g1: 1 << G1,
-        b1: 1 << B1,
-        r2: 1 << R2,
-        g2: 1 << G2,
-        b2: 1 << B2,
-        a: 1 << A,
-        b: 1 << B,
-        c: 1 << C,
-        clock: 1 << CLOCK,
-        latch: 1 << LATCH,
-        oe: 1 << OE,
+        r1: 1 << PIN_POSITIONS.0,
+        g1: 1 << PIN_POSITIONS.1,
+        b1: 1 << PIN_POSITIONS.2,
+        r2: 1 << PIN_POSITIONS.3,
+        g2: 1 << PIN_POSITIONS.4,
+        b2: 1 << PIN_POSITIONS.5,
+        a: 1 << PIN_POSITIONS.6,
+        b: 1 << PIN_POSITIONS.7,
+        c: 1 << PIN_POSITIONS.8,
+        clock: 1 << PIN_POSITIONS.9,
+        latch: 1 << PIN_POSITIONS.10,
+        oe: 1 << PIN_POSITIONS.11,
     };
 
     /// TODO: Write better documentation
@@ -322,7 +301,6 @@ impl<
 
             delay.delay_us(1);
 
-
             unsafe {
                 *self.output_port = output_buffer;
             }
@@ -364,19 +342,8 @@ use embedded_graphics::{
 
 impl<
         const ROW_LENGTH: usize,
-        const R1: u16,
-        const G1: u16,
-        const B1: u16,
-        const R2: u16,
-        const G2: u16,
-        const B2: u16,
-        const A: u16,
-        const B: u16,
-        const C: u16,
-        const CLOCK: u16,
-        const LATCH: u16,
-        const OE: u16,
-    > DrawTarget<Rgb888> for Hub75<ROW_LENGTH, R1, G1, B1, R2, G2, B2, A, B, C, CLOCK, LATCH, OE>
+        const PIN_POSITIONS: (u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16),
+    > DrawTarget<Rgb888> for Hub75<ROW_LENGTH, PIN_POSITIONS>
 {
     type Error = core::convert::Infallible;
 
