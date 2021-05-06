@@ -341,8 +341,8 @@ use embedded_graphics::{
 };
 
 impl<
-        const ROW_LENGTH: usize,
         const PIN_POSITIONS: (u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16),
+        const ROW_LENGTH: usize,
     > DrawTarget<Rgb888> for Hub75<PIN_POSITIONS, ROW_LENGTH>
 {
     type Error = core::convert::Infallible;
