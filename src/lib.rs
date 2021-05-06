@@ -57,8 +57,8 @@ struct Pins {
     oe: u16,
 }
 pub struct Hub75<
-    const ROW_LENGTH: usize,
     const PIN_POSITIONS: (u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16),
+    const ROW_LENGTH: usize,
 > {
     //r1, g1, b1, r2, g2, b2, column, row
     #[cfg(not(feature = "stripe-multiplexing"))]
@@ -77,7 +77,7 @@ pub struct Hub75<
 impl<
         const ROW_LENGTH: usize,
         const PIN_POSITIONS: (u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16),
-    > Hub75<ROW_LENGTH, PIN_POSITIONS>
+    > Hub75<PIN_POSITIONS, ROW_LENGTH>
 {
     const PINS: Pins = Pins {
         r1: 1 << PIN_POSITIONS.0,
@@ -343,7 +343,7 @@ use embedded_graphics::{
 impl<
         const ROW_LENGTH: usize,
         const PIN_POSITIONS: (u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16),
-    > DrawTarget<Rgb888> for Hub75<ROW_LENGTH, PIN_POSITIONS>
+    > DrawTarget<Rgb888> for Hub75<PIN_POSITIONS, ROW_LENGTH>
 {
     type Error = core::convert::Infallible;
 
