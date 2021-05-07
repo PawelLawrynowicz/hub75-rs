@@ -41,8 +41,8 @@ const GAMMA8: [u8; 256] = [
     177, 180, 182, 184, 186, 189, 191, 193, 196, 198, 200, 203, 205, 208, 210, 213, 215, 218, 220,
     223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255,
 ];
-
-struct Pins {
+#[derive(PartialEq, Eq)]
+pub struct Pins {
     r1: u16,
     g1: u16,
     b1: u16,
@@ -56,10 +56,7 @@ struct Pins {
     latch: u16,
     oe: u16,
 }
-pub struct Hub75<
-    const PIN_POSITIONS: (u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16),
-    const ROW_LENGTH: usize,
-> {
+pub struct Hub75<const PIN_POS: Pins, const ROW_LENGTH: usize> {
     //r1, g1, b1, r2, g2, b2, column, row
     #[cfg(not(feature = "stripe-multiplexing"))]
     data: [[(u8, u8, u8, u8, u8, u8); ROW_LENGTH]; NUM_ROWS],
@@ -74,24 +71,20 @@ pub struct Hub75<
     brightness_bits: u8,
 }
 
-impl<
-        const PIN_POSITIONS: (u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16),
-        const ROW_LENGTH: usize,
-    > Hub75<PIN_POSITIONS, ROW_LENGTH>
-{
+impl<const PIN_POS: Pins, const ROW_LENGTH: usize> Hub75<PIN_POS, ROW_LENGTH> {
     const PINS: Pins = Pins {
-        r1: 1 << PIN_POSITIONS.0,
-        g1: 1 << PIN_POSITIONS.1,
-        b1: 1 << PIN_POSITIONS.2,
-        r2: 1 << PIN_POSITIONS.3,
-        g2: 1 << PIN_POSITIONS.4,
-        b2: 1 << PIN_POSITIONS.5,
-        a: 1 << PIN_POSITIONS.6,
-        b: 1 << PIN_POSITIONS.7,
-        c: 1 << PIN_POSITIONS.8,
-        clock: 1 << PIN_POSITIONS.9,
-        latch: 1 << PIN_POSITIONS.10,
-        oe: 1 << PIN_POSITIONS.11,
+        r1: 1 << PIN_POS.r1,
+        g1: 1 << PIN_POS.g1,
+        b1: 1 << PIN_POS.b1,
+        r2: 1 << PIN_POS.r2,
+        g2: 1 << PIN_POS.g2,
+        b2: 1 << PIN_POS.b2,
+        a: 1 << PIN_POS.a,
+        b: 1 << PIN_POS.b,
+        c: 1 << PIN_POS.c,
+        clock: 1 << PIN_POS.clock,
+        latch: 1 << PIN_POS.latch,
+        oe: 1 << PIN_POS.oe,
     };
 
     /// TODO: Write better documentation
@@ -340,11 +333,7 @@ use embedded_graphics::{
     DrawTarget,
 };
 
-impl<
-        const PIN_POSITIONS: (u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16, u16),
-        const ROW_LENGTH: usize,
-    > DrawTarget<Rgb888> for Hub75<PIN_POSITIONS, ROW_LENGTH>
-{
+impl<const PIN_POS: Pins, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<PIN_POS, ROW_LENGTH> {
     type Error = core::convert::Infallible;
 
     #[cfg(not(feature = "stripe-multiplexing"))]
