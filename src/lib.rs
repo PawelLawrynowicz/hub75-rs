@@ -43,18 +43,18 @@ const GAMMA8: [u8; 256] = [
 ];
 #[derive(PartialEq, Eq)]
 pub struct Pins {
-    r1: u16,
-    g1: u16,
-    b1: u16,
-    r2: u16,
-    g2: u16,
-    b2: u16,
-    a: u16,
-    b: u16,
-    c: u16,
-    clock: u16,
-    latch: u16,
-    oe: u16,
+    pub r1: u16,
+    pub g1: u16,
+    pub b1: u16,
+    pub r2: u16,
+    pub g2: u16,
+    pub b2: u16,
+    pub a: u16,
+    pub b: u16,
+    pub c: u16,
+    pub clock: u16,
+    pub latch: u16,
+    pub oe: u16,
 }
 pub struct Hub75<const PIN_POS: Pins, const ROW_LENGTH: usize> {
     //r1, g1, b1, r2, g2, b2, column, row
