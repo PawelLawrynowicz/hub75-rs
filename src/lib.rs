@@ -343,6 +343,10 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<
         let column = coord[0];
         let row = coord[1];
 
+        if column < 0 || column >= ROW_LENGTH as i32|| row < 0 || row >= (NUM_ROWS * 2) as i32{
+            return Ok(());
+        }
+
         let mut pixel_tuple = &mut self.data[row as usize % NUM_ROWS][column as usize];
 
         if row > 15 {
@@ -364,6 +368,10 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<
 
         let mut x = coord[0] as usize;
         let mut y = coord[1] as usize;
+
+        if (x < 0 || x >= ROW_LENGTH / 2 || y < 0 || y >= NUM_ROWS * 2){
+            return Ok(());
+        }
 
         let is_top_stripe = (y % NUM_ROWS) < NUM_ROWS / 2;
 
