@@ -221,7 +221,7 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> Hub75<PIN_POS, ROW_LENGTH> {
     pub fn output_single_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, bit: u8) {
         let mask = 1 << bit;
         //derived empirically, without it the last row will be dimmer than others
-        //let delay_after_last_row = (5 * ROW_LENGTH / 64) as u8;
+        let delay_after_last_row = (5 * ROW_LENGTH / 64) as u8;
 
         //hacky, but it's the most efficient way. We need to make sure oe is HIGH when pushing color bits, but only during first iteration.
         //By assigning it here we don't have to check a condition every iteration of inner loop;
@@ -299,13 +299,13 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> Hub75<PIN_POS, ROW_LENGTH> {
             }
         }
 
-        /*//prevents last row from being brighter
+        //prevents last row from being brighter
         delay.delay_us(delay_after_last_row);
 
-        output_buffer |= pins.oe;
+        output_buffer |= Self::PINS.oe;
         unsafe{
             *self.output_port = output_buffer;
-        }*/
+        }
     }
 
     /// Clear the output
