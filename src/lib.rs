@@ -208,20 +208,20 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> Hub75<PIN_POS, ROW_LENGTH> {
         }
     }
 
-    pub fn output_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, delay_base_us: u8) {
+    pub fn output_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, delay_base_us: u8, comp_delay: u8) {
         let shift = 8 - self.brightness_bits;
 
         // PWM cycle
         for bit in 0..self.brightness_bits {
-            self.output_single_bcm(delay, bit + shift);
+            self.output_single_bcm(delay, bit + shift, comp_delay);
             delay.delay_us(delay_base_us * (1 << bit))
         }
     }
 
-    pub fn output_single_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, bit: u8) {
+    pub fn output_single_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, bit: u8, comp_delay : u8) {
         let mask = 1 << bit;
         //derived empirically, without it the last row will be dimmer than others
-        let delay_after_last_row = (5 * ROW_LENGTH / 64) as u8;
+        let delay_after_last_row = comp_delay;
 
         //hacky, but it's the most efficient way. We need to make sure oe is HIGH when pushing color bits, but only during first iteration.
         //By assigning it here we don't have to check a condition every iteration of inner loop;
