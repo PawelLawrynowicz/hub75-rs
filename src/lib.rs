@@ -160,13 +160,18 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> Hub75<PIN_POS, ROW_LENGTH> {
                     *self.output_port = output_buffer;
                 }
             }
-            output_buffer += Self::PINS.oe;
-            output_buffer -= Self::PINS.latch;
+
+            output_buffer |= Self::PINS.oe;
+            output_buffer &= !Self::PINS.latch;
+
             unsafe {
                 *self.output_port = output_buffer;
             }
-            output_buffer += Self::PINS.latch;
+
+            output_buffer |= Self::PINS.latch;
+
             delay.delay_us(1);
+
             unsafe {
                 *self.output_port = output_buffer;
             }
@@ -191,6 +196,7 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> Hub75<PIN_POS, ROW_LENGTH> {
                 address += Self::PINS.c;
             }
 
+            output_buffer &= !(Self::PINS.a + Self::PINS.b + Self::PINS.c);
             output_buffer += address;
 
             unsafe {
@@ -200,7 +206,7 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> Hub75<PIN_POS, ROW_LENGTH> {
             /*delay.delay_us(1);
             self.pins.oe().set_low()?;*/
 
-            output_buffer -= Self::PINS.oe;
+            output_buffer &= !Self::PINS.oe;
 
             unsafe {
                 *self.output_port = output_buffer;
