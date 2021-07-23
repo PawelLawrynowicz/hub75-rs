@@ -14,8 +14,8 @@ readme = "README.md"
 repository = "https://github.com/david-sawatzke/hub75-rs"
 
 [dependencies]
-embedded-hal = "0.2.4"
-embedded-graphics = "0.6.2"
+embedded-hal = "0.2.5"
+embedded-graphics = "0.7.1"
 
 [features]
 size-64x64 = []

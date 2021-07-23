@@ -214,7 +214,12 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> Hub75<PIN_POS, ROW_LENGTH> {
         }
     }
 
-    pub fn output_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, delay_base_us: u8, comp_delay: u8) {
+    pub fn output_bcm<DELAY: DelayUs<u8>>(
+        &mut self,
+        delay: &mut DELAY,
+        delay_base_us: u8,
+        comp_delay: u8,
+    ) {
         let shift = 8 - self.brightness_bits;
 
         // PWM cycle
@@ -224,7 +229,12 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> Hub75<PIN_POS, ROW_LENGTH> {
         }
     }
 
-    pub fn output_single_bcm<DELAY: DelayUs<u8>>(&mut self, delay: &mut DELAY, bit: u8, comp_delay : u8) {
+    pub fn output_single_bcm<DELAY: DelayUs<u8>>(
+        &mut self,
+        delay: &mut DELAY,
+        bit: u8,
+        comp_delay: u8,
+    ) {
         let mask = 1 << bit;
         //derived empirically, without it the last row will be dimmer than others
         let delay_after_last_row = comp_delay;
@@ -309,7 +319,7 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> Hub75<PIN_POS, ROW_LENGTH> {
         delay.delay_us(delay_after_last_row);
 
         output_buffer |= Self::PINS.oe;
-        unsafe{
+        unsafe {
             *self.output_port = output_buffer;
         }
     }
@@ -330,26 +340,15 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> Hub75<PIN_POS, ROW_LENGTH> {
             }
         }
     }
-}
-
-use embedded_graphics::{
-    drawable::Pixel,
-    pixelcolor::{Rgb888, RgbColor},
-    prelude::Size,
-    DrawTarget,
-};
-
-impl<const PIN_POS: Pins, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<PIN_POS, ROW_LENGTH> {
-    type Error = core::convert::Infallible;
 
     #[cfg(not(feature = "stripe-multiplexing"))]
-    fn draw_pixel(&mut self, item: Pixel<Rgb888>) -> Result<(), Self::Error> {
+    fn draw_pixel(&mut self, item: Pixel<Rgb888>) -> Result<(), <Hub75<PIN_POS, ROW_LENGTH> as DrawTarget>::Error> {
         let Pixel(coord, color) = item;
 
         let column = coord[0];
         let row = coord[1];
 
-        if column < 0 || column >= ROW_LENGTH as i32|| row < 0 || row >= (NUM_ROWS * 2) as i32{
+        if column < 0 || column >= ROW_LENGTH as i32 || row < 0 || row >= (NUM_ROWS * 2) as i32 {
             return Ok(());
         }
 
@@ -369,13 +368,13 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<
     }
 
     #[cfg(feature = "stripe-multiplexing")]
-    fn draw_pixel(&mut self, item: Pixel<Rgb888>) -> Result<(), Self::Error> {
+    fn draw_pixel(&mut self, item: Pixel<Rgb888>) -> Result<(), <Hub75<PIN_POS, ROW_LENGTH> as DrawTarget>::Error> {
         let Pixel(coord, color) = item;
 
         let mut x = coord[0] as usize;
         let mut y = coord[1] as usize;
 
-        if (x < 0 || x >= ROW_LENGTH / 2 || y < 0 || y >= NUM_ROWS * 2){
+        if (x < 0 || x >= ROW_LENGTH / 2 || y < 0 || y >= NUM_ROWS * 2) {
             return Ok(());
         }
 
@@ -406,6 +405,18 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<
 
         Ok(())
     }
+}
+
+use embedded_graphics::{
+    draw_target::DrawTarget,
+    pixelcolor::{Rgb888, RgbColor},
+    prelude::{OriginDimensions, Size},
+    Pixel,
+};
+
+impl<const PIN_POS: Pins, const ROW_LENGTH: usize> DrawTarget for Hub75<PIN_POS, ROW_LENGTH> {
+    type Error = core::convert::Infallible;
+    type Color = Rgb888;
 
     fn draw_iter<T>(&mut self, item: T) -> Result<(), Self::Error>
     where
@@ -440,7 +451,9 @@ impl<const PIN_POS: Pins, const ROW_LENGTH: usize> DrawTarget<Rgb888> for Hub75<
 
         Ok(())
     }
+}
 
+impl<const PIN_POS: Pins, const ROW_LENGTH: usize> OriginDimensions for Hub75<PIN_POS, ROW_LENGTH> {
     fn size(&self) -> Size {
         Size {
             #[cfg(not(feature = "stripe-multiplexing"))]
